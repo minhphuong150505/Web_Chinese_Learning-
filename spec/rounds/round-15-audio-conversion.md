@@ -11,8 +11,9 @@ Backend has ffmpeg available and an `AudioConversionService.toWav16kMono(File we
 
 ## Files to create
 
-- `backend/src/main/java/com/chineseapp/service/AudioConversionService.java`
-- `backend/src/test/java/com/chineseapp/service/AudioConversionServiceTest.java`
+- `backend/src/main/java/com/chineseapp/service/AudioConversionService.java` (interface)
+- `backend/src/main/java/com/chineseapp/service/impl/AudioConversionServiceImpl.java` (`@Service`)
+- `backend/src/test/java/com/chineseapp/service/AudioConversionServiceImplTest.java`
 - `backend/src/test/resources/sample.webm` — a small WebM/Opus audio clip (≤50 KB). Generate it on demand inside the test (e.g., a 0.5s silent clip) rather than committing a binary if possible. **Alternative:** in the test, generate the WebM with ffmpeg as part of setup.
 
 ## Files to modify
@@ -30,12 +31,13 @@ Backend has ffmpeg available and an `AudioConversionService.toWav16kMono(File we
    EXPOSE 8080
    CMD ["java", "-jar", "app.jar"]
    ```
-2. Create `AudioConversionService`:
+2. Create the `AudioConversionService` interface (`File toWav16kMono(File input)`) and `AudioConversionServiceImpl` (`@Service`, `implements AudioConversionService`) per `spec/05-backend.md` § "Service interface pattern":
    ```java
    @Service
-   public class AudioConversionService {
-       private static final Logger log = LoggerFactory.getLogger(AudioConversionService.class);
+   public class AudioConversionServiceImpl implements AudioConversionService {
+       private static final Logger log = LoggerFactory.getLogger(AudioConversionServiceImpl.class);
 
+       @Override
        public File toWav16kMono(File input) {
            try {
                File output = File.createTempFile("audio-", ".wav");

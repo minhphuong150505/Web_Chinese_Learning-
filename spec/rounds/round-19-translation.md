@@ -13,9 +13,10 @@ User types Vietnamese or Chinese, picks direction, clicks Translate, sees the re
 
 - `backend/src/main/java/com/chineseapp/dto/translation/TranslationRequest.java`
 - `backend/src/main/java/com/chineseapp/dto/translation/TranslationResponse.java`
-- `backend/src/main/java/com/chineseapp/service/TranslationService.java`
+- `backend/src/main/java/com/chineseapp/service/TranslationService.java` (interface)
+- `backend/src/main/java/com/chineseapp/service/impl/TranslationServiceImpl.java` (`@Service`)
 - `backend/src/main/java/com/chineseapp/controller/TranslationController.java`
-- `backend/src/test/java/com/chineseapp/service/TranslationServiceTest.java`
+- `backend/src/test/java/com/chineseapp/service/TranslationServiceImplTest.java`
 - `frontend/src/types/translation.ts`
 - `frontend/src/hooks/useTranslation.ts`
 - `frontend/src/features/translation/TranslationTab.tsx`
@@ -36,10 +37,10 @@ User types Vietnamese or Chinese, picks direction, clicks Translate, sees the re
    public record TranslationRequest(@NotBlank String text, @NotNull Direction direction) {}
    public record TranslationResponse(String translation) {}
    ```
-2. `TranslationService`:
+2. `TranslationService` interface + `TranslationServiceImpl` (`@Service`) per `spec/05-backend.md` § "Service interface pattern". Interface: `TranslationResponse translate(TranslationRequest req)` (no DB, no user scoping needed — only a valid token is required at the controller):
    ```java
    @Service
-   public class TranslationService {
+   public class TranslationServiceImpl implements TranslationService {
        private static final String SYSTEM_PROMPT_VI_TO_ZH = """
            You translate Vietnamese to Simplified Chinese.
            - Output ONLY the Chinese translation, no commentary.

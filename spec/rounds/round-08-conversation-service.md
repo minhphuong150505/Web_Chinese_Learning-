@@ -17,8 +17,9 @@
 - `backend/src/main/java/com/chineseapp/dto/chat/ChatResponse.java`
 - `backend/src/main/java/com/chineseapp/dto/chat/MessageDto.java`
 - `backend/src/main/java/com/chineseapp/dto/chat/ConversationDto.java`
-- `backend/src/main/java/com/chineseapp/service/ConversationService.java`
-- `backend/src/test/java/com/chineseapp/service/ConversationServiceTest.java`
+- `backend/src/main/java/com/chineseapp/service/ConversationService.java` (interface)
+- `backend/src/main/java/com/chineseapp/service/impl/ConversationServiceImpl.java` (`@Service`)
+- `backend/src/test/java/com/chineseapp/service/ConversationServiceImplTest.java`
 
 ## Files to modify
 
@@ -45,8 +46,10 @@
 
    public record ChatResponse(MessageDto userMessage, MessageDto assistantMessage) {}
    ```
-4. Create `ConversationService` per `spec/05-backend.md` § "Service template":
+4. Create the `ConversationService` **interface** in `service/` and `ConversationServiceImpl` in `service/impl/` per `spec/05-backend.md` § "Service interface pattern" + "Service template":
+   - `@Service` goes on `ConversationServiceImpl`, which `implements ConversationService`.
    - Constructor injects `ConversationRepository`, `MessageRepository`, `LlmClient`.
+   - **Note (pre-auth):** in this round there is no user yet — methods have the signatures shown below without `userId`. Round 24 adds the `UUID userId` first parameter and the `findByIdAndUserId` scoping. Do not add `userId` now (YAGNI; it arrives with the `users` table).
    - `private static final String SYSTEM_PROMPT = """..."""` exactly per `spec/07-external-apis.md` §7.1 `ConversationService.SYSTEM_PROMPT`.
    - Methods:
      - `ConversationDto createConversation()` — creates, saves, returns DTO.
@@ -56,7 +59,7 @@
    - All write methods `@Transactional`.
    - Update `conversation.updatedAt` to `Instant.now()` on each send.
 5. Update `OpenAiCompatibleLlmClient` to throw `ApiException(HttpStatus.BAD_GATEWAY, ...)` instead of `RuntimeException`.
-6. Write `ConversationServiceTest`:
+6. Write `ConversationServiceImplTest` (against the interface type, instantiating the `Impl`):
    - Mock `LlmClient` to return a fixed string.
    - Use in-memory repos via Mockito.
    - Assert two messages saved per `sendMessage` call.
@@ -69,7 +72,8 @@
 
 ## Verification
 
-- [ ] `./mvnw test` passes including `ConversationServiceTest`.
+- [ ] `./mvnw test` passes including `ConversationServiceImplTest`.
+- [ ] `ConversationController` (later round) will depend on the `ConversationService` interface, not the `Impl`. `@Service` is on the `Impl` only.
 - [ ] Code review: services return DTOs only, never `Conversation` / `Message` entities.
 - [ ] `GlobalExceptionHandler` is the only `@RestControllerAdvice` in the codebase.
 

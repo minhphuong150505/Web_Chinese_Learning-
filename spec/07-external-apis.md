@@ -166,3 +166,41 @@ Default: `zh-CN-XiaoxiaoNeural`. Configurable via `TTS_VOICE` env.
 ### `EdgeTtsClient` (Java side)
 
 Just a `WebClient` GET to `${tts.base-url}/tts?text=...&voice=...` returning `byte[]`. Service writes bytes to disk and returns the relative filename.
+
+## 7.4 Google OAuth (sign-in, Round 22+)
+
+Sign-in uses Google Identity Services. The frontend obtains a **Google ID token** (a JWT signed by Google); the backend verifies it and issues its own app JWT. No OAuth authorization-code/redirect flow, no Google API scopes beyond basic profile.
+
+### Setup (one-time, by the operator)
+
+1. Google Cloud Console → APIs & Services → Credentials → **Create OAuth client ID** → type **Web application**.
+2. Authorized JavaScript origins: `http://localhost:5173` (dev) and the public origin when deployed.
+3. Copy the **Client ID** → set as `GOOGLE_CLIENT_ID` (backend) and `VITE_GOOGLE_CLIENT_ID` (frontend). They must be the **same** value.
+4. No client secret is needed (ID-token verification only).
+
+### Frontend
+
+- `@react-oauth/google`: wrap the app in `<GoogleOAuthProvider clientId={...}>`, render `<GoogleLogin onSuccess={...}/>`.
+- `onSuccess` gives `credentialResponse.credential` — that string is the Google ID token. POST it to `/api/auth/google`.
+
+### Backend verification (`GoogleTokenVerifier`)
+
+```java
+GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(transport, jsonFactory)
+    .setAudience(Collections.singletonList(googleClientId))   // app.auth.google.client-id
+    .build();
+
+GoogleIdToken token = verifier.verify(idTokenString);          // null if invalid/expired
+if (token == null) return Optional.empty();
+GoogleIdToken.Payload p = token.getPayload();
+// p.getSubject() = google_sub, p.getEmail(), (String) p.get("name")
+```
+
+- The library checks signature (against Google's rotating certs), expiry, issuer (`accounts.google.com`), and audience.
+- **Credentials handling:** `GOOGLE_CLIENT_ID` is a public identifier, not a secret. `JWT_SECRET` **is** secret (signs your app tokens) — never commit it; the implementer MUST stop at the start of Round 22 and ask the operator for `JWT_SECRET` and `GOOGLE_CLIENT_ID`.
+
+### App JWT (issued by `JwtService`)
+
+- Algorithm HS256, signed with `JWT_SECRET`.
+- Claims: `sub` = `user.id` (UUID), `email`, `name`; `exp` = now + `JWT_EXPIRY_DAYS`.
+- Verified on every request by `JwtAuthFilter` (see `05-backend.md` § Security).

@@ -10,7 +10,7 @@ A locally-runnable web app to practice Mandarin Chinese (中文) through three f
 | 2 | **Pronunciation scoring** | User reads a sentence; system returns accuracy / fluency / completeness / **tone** scores per syllable. |
 | 3 | **Translation & writing feedback** | Translate Vi↔Zh; review user's Chinese writing for grammar & word choice. |
 
-Purpose: personal learning / demo. **Not** production, **not** multi-user, **no** auth.
+Purpose: a learning app that can be **made public for multiple users**. Each user signs in with Google and sees only their own data (conversations, pronunciation history). Not a hardened production system, but auth and per-user data isolation are in scope.
 
 ## Locked-in decisions
 
@@ -27,13 +27,16 @@ These are decided. Do not revisit without explicit user approval (see Appendix i
 | Backend build tool | **Maven** | Wrapper (`mvnw`) committed. |
 | Styling | **Tailwind CSS** | Fast iteration; no design system needed. |
 | Frontend server state | **TanStack Query v5** | Caching + retries out of the box. |
-| Auth | **None** | Single anonymous user. |
-| Routing (frontend) | **None** | Single page with tabs. Add router only if app grows past 4 tabs. |
+| Auth | **Google OAuth → app JWT** | Public multi-user. Frontend gets a Google ID token; backend verifies it, find-or-creates a `User`, and issues its own stateless JWT. No passwords stored. |
+| Data ownership | **Per-user** | Every conversation and pronunciation score belongs to a `user_id`. Users only ever read/write their own rows. |
+| Routing (frontend) | **None** | Single page with tabs, gated behind a login screen. Add router only if app grows past 4 tabs. |
 | Java helpers | **No Lombok** | Use Java 21 records + explicit getters. Keeps code obvious for any model reading it. |
 
 ## Anti-decisions (explicitly NOT doing)
 
-- No authentication / users / sessions.
+- No password-based auth (Google sign-in only — no password column, no BCrypt, no email/password forms).
+- No roles / permissions / admin (every authenticated user is an equal, ordinary user).
+- No refresh-token rotation in v1 (single app JWT with a multi-day expiry; user re-signs in with Google when it expires).
 - No streaming responses in v1.
 - No CI/CD, no production deploy configs.
 - No analytics, no telemetry.

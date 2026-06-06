@@ -1,6 +1,6 @@
 # Rounds — Execution Plan
 
-21 small rounds. Do **one at a time**, in order. Stop after each round and wait for user approval.
+25 small rounds (21 feature rounds + 4 auth rounds in Milestone 5). Do **one at a time**, in order. Stop after each round and wait for user approval. Execution order is Round 01 → 20, then Milestone 5 (Rounds 22 → 25), then Round 21 (final polish) last.
 
 Each round file has the same structure:
 
@@ -55,7 +55,18 @@ Mark `[x]` when verified by the user. Implementer updates this at end-of-round p
 - [ ] [Round 19 — Translation feature](./round-19-translation.md)
 - [ ] [Round 20 — Writing feedback feature](./round-20-writing-feedback.md)
 
+### Milestone 5 — Auth & multi-user (public)
+
+> Makes the app public for many users. Google sign-in → app JWT; each user sees only their own data. Adds the `users` table (V3) and `user_id` ownership (V4). BLOCKS on `JWT_SECRET` + `GOOGLE_CLIENT_ID` at Round 22.
+
+- [ ] [Round 22 — Auth foundation (deps + User entity + V3 + security config)](./round-22-auth-foundation.md)
+- [ ] [Round 23 — Google login + JWT issue (AuthService + AuthController)](./round-23-auth-endpoints.md)
+- [ ] [Round 24 — Per-user data (V4 + scope conversation & pronunciation services)](./round-24-user-scoping.md)
+- [ ] [Round 25 — Frontend auth (Google login, AuthProvider, login gate)](./round-25-frontend-auth.md)
+
 ### Finalization
+
+> Run **last**, after Round 25 (despite its lower number — it's the closing polish pass for the whole app incl. auth).
 
 - [ ] [Round 21 — Cold-start verification + README polish](./round-21-final-polish.md)
 
@@ -63,6 +74,7 @@ Mark `[x]` when verified by the user. Implementer updates this at end-of-round p
 
 1. Never start round N+1 until round N is checked off AND the user has approved.
 2. Never touch files outside the round's "Files to create / modify" list — if you need to, stop and ask.
+   - Reminder: every business service is created as an **interface + `impl/<Name>Impl`** (see `05-backend.md` § "Service interface pattern"). Controllers inject the interface.
 3. Always run the round's Verification block to completion before reporting "done".
 4. If a verification step fails: investigate root cause; do **not** mark complete; report to user.
 

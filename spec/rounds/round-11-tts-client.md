@@ -13,8 +13,9 @@ Backend can call `tts-service`, save the returned MP3 to disk under `AUDIO_STORA
 
 - `backend/src/main/java/com/chineseapp/config/TtsProperties.java`
 - `backend/src/main/java/com/chineseapp/client/EdgeTtsClient.java`
-- `backend/src/main/java/com/chineseapp/service/TtsService.java`
-- `backend/src/test/java/com/chineseapp/service/TtsServiceTest.java`
+- `backend/src/main/java/com/chineseapp/service/TtsService.java` (interface)
+- `backend/src/main/java/com/chineseapp/service/impl/TtsServiceImpl.java` (`@Service`)
+- `backend/src/test/java/com/chineseapp/service/TtsServiceImplTest.java`
 
 ## Files to modify
 
@@ -48,7 +49,7 @@ Backend can call `tts-service`, save the returned MP3 to disk under `AUDIO_STORA
        }
    }
    ```
-3. Create `TtsService.synthesize(String text)`:
+3. Create the `TtsService` interface (`String synthesize(String text)`) and `TtsServiceImpl` (`@Service`, `implements TtsService`) per `spec/05-backend.md` § "Service interface pattern". `synthesize`:
    - Calls `EdgeTtsClient.synthesize(text)`.
    - Generates UUID filename: `<uuid>.mp3`.
    - Writes bytes to `${storageDir}/<filename>`. Use `Files.write(Path.of(storageDir, filename), bytes)`.

@@ -8,7 +8,7 @@ Every line of code MUST trace to a step in an active round. If you can't point t
 
 ## General
 
-- **No speculative abstractions.** Don't add an interface unless this spec already lists a second implementation.
+- **No speculative abstractions** — with one sanctioned exception. Don't add an interface on a whim. **However, the service layer is interface-first by project convention** (`03-folder-structure.md`, `05-backend.md` § "Service interface pattern"): every business service is an interface in `service/` with one `<Name>Impl` in `service/impl/`. This is a deliberate, spec-listed structural choice for the `service` package only — it does **not** license adding interfaces in other layers (`client` keeps `LlmClient` because it has multiple providers; `repository`/`controller`/`dto` stay concrete).
 - **No "for future use" code.** YAGNI.
 - **Each round touches only files listed in its round file.** If you need to touch something else, stop and ask.
 - **Match existing style** even if you'd do it differently (Claude.md §3).
@@ -57,7 +57,7 @@ Examples:
 
 The implementer MUST stop and ask the user when:
 
-1. A required env var is missing (`LLM_API_KEY` for Round 7+; `AZURE_SPEECH_KEY` for Round 16+).
+1. A required env var is missing (`LLM_API_KEY` for Round 7+; `AZURE_SPEECH_KEY` for Round 16+; `JWT_SECRET` and `GOOGLE_CLIENT_ID` for Round 22+).
 2. A model name in DeepSeek docs differs from `.env.example` defaults.
 3. A verification step fails in a way that isn't a simple code fix.
 4. A change would require touching a file outside the active round's "files touched" list.

@@ -16,8 +16,9 @@ V2 migration creates `pronunciation_scores`. JPA entity + repo + DTOs. `Pronunci
 - `backend/src/main/java/com/chineseapp/repository/PronunciationScoreRepository.java`
 - `backend/src/main/java/com/chineseapp/dto/pronunciation/PronunciationResponse.java`
 - `backend/src/main/java/com/chineseapp/dto/pronunciation/WordScore.java`
-- `backend/src/main/java/com/chineseapp/service/PronunciationService.java`
-- `backend/src/test/java/com/chineseapp/service/PronunciationServiceTest.java`
+- `backend/src/main/java/com/chineseapp/service/PronunciationService.java` (interface)
+- `backend/src/main/java/com/chineseapp/service/impl/PronunciationServiceImpl.java` (`@Service`)
+- `backend/src/test/java/com/chineseapp/service/PronunciationServiceImplTest.java`
 
 ## Files to modify
 
@@ -66,7 +67,7 @@ V2 migration creates `pronunciation_scores`. JPA entity + repo + DTOs. `Pronunci
        Instant createdAt
    ) {}
    ```
-5. Create `PronunciationService.assess(MultipartFile audio, String referenceText)`:
+5. Create the `PronunciationService` interface and `PronunciationServiceImpl` (`@Service`, `implements PronunciationService`) per `spec/05-backend.md` § "Service interface pattern". The method `assess(MultipartFile audio, String referenceText)` (Round 24 adds a leading `UUID userId` param + sets it on the saved score):
    - Constructor injects: `AudioConversionService`, `AzureSpeechClient`, `PronunciationScoreRepository`, `ObjectMapper` (Spring's default Jackson bean).
    - Steps:
      1. Save the multipart file to a temp WebM file (`File.createTempFile`).

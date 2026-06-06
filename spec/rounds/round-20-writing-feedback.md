@@ -13,9 +13,10 @@ User submits a Chinese paragraph (optionally with a topic). Backend asks DeepSee
 
 - `backend/src/main/java/com/chineseapp/dto/writing/WritingFeedbackRequest.java`
 - `backend/src/main/java/com/chineseapp/dto/writing/WritingFeedbackResponse.java`
-- `backend/src/main/java/com/chineseapp/service/WritingFeedbackService.java`
+- `backend/src/main/java/com/chineseapp/service/WritingFeedbackService.java` (interface)
+- `backend/src/main/java/com/chineseapp/service/impl/WritingFeedbackServiceImpl.java` (`@Service`)
 - `backend/src/main/java/com/chineseapp/controller/WritingController.java`
-- `backend/src/test/java/com/chineseapp/service/WritingFeedbackServiceTest.java`
+- `backend/src/test/java/com/chineseapp/service/WritingFeedbackServiceImplTest.java`
 - `frontend/src/types/writing.ts`
 - `frontend/src/hooks/useWritingFeedback.ts`
 - `frontend/src/features/writing/WritingTab.tsx`
@@ -36,7 +37,7 @@ User submits a Chinese paragraph (optionally with a topic). Backend asks DeepSee
    public record Comment(String issue, String suggestion, String severity) {}
    public record WritingFeedbackResponse(String correctedText, List<Comment> comments) {}
    ```
-2. `WritingFeedbackService`:
+2. `WritingFeedbackService` interface + `WritingFeedbackServiceImpl` (`@Service`) per `spec/05-backend.md` § "Service interface pattern" (no DB, no user scoping — only a valid token at the controller):
    - `SYSTEM_PROMPT` exactly per `spec/07-external-apis.md` §7.1 `WritingFeedbackService.SYSTEM_PROMPT`.
    - Build user message: if `topic` present, prefix `"Topic: ${topic}\n\n"`, then the text.
    - Call `LlmClient.chat([system, user])`.

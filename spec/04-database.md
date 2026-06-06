@@ -76,6 +76,45 @@ Stored as PostgreSQL `JSONB`. Each row is the raw per-word output from Azure map
 ]
 ```
 
+## V3 — users (Round 22)
+
+File: `backend/src/main/resources/db/migration/V3__users.sql`
+
+```sql
+CREATE TABLE users (
+    id            UUID         PRIMARY KEY,
+    email         VARCHAR(320) NOT NULL UNIQUE,
+    google_sub    VARCHAR(255) NOT NULL UNIQUE,   -- Google's stable subject id ("sub" claim)
+    display_name  VARCHAR(255),
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+```
+
+- No password column — sign-in is Google-only (see `00-overview-and-decisions.md`).
+- `google_sub` is the trusted identity key. `email` is stored for display but a user is matched by `google_sub` (emails can change).
+
+## V4 — per-user ownership (Round 24)
+
+File: `backend/src/main/resources/db/migration/V4__add_user_id.sql`
+
+Adds `user_id` to the two owned tables. `messages` is owned transitively through its conversation, so it gets no column.
+
+```sql
+ALTER TABLE conversations
+    ADD COLUMN user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+
+ALTER TABLE pronunciation_scores
+    ADD COLUMN user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+
+CREATE INDEX idx_conversations_user        ON conversations (user_id, updated_at DESC);
+CREATE INDEX idx_pron_scores_user_created  ON pronunciation_scores (user_id, created_at DESC);
+```
+
+Migration notes:
+- The column is added **nullable** so the migration succeeds on an existing demo DB. The application treats `user_id` as required on every new row — services always set it from the authenticated user.
+- If the DB already has pre-auth rows, they remain orphaned (`user_id IS NULL`) and are simply never returned to any user. For a clean public launch, reset with `docker compose down -v`.
+- After V4, every query in `ConversationService` / `PronunciationService` filters by `user_id` (see `05-backend.md`).
+
 ## JPA entity pattern
 
 - Class is a plain Java class with private fields, an `@Id` generator left empty (set by code), and getters/setters.

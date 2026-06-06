@@ -49,13 +49,20 @@ services:
       AUDIO_STORAGE_DIR: /data/audio
       AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
       AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-southeastasia}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRY_DAYS: ${JWT_EXPIRY_DAYS:-7}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     volumes:
       - audio_data:/data/audio
     ports:
       - "8080:8080"
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Vite inlines env at build time, so the client id is passed as a build arg.
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     depends_on:
       - backend
     ports:
@@ -106,6 +113,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+# Google OAuth client id is inlined into the bundle at build time (public, not secret).
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN npm run build
 
 FROM nginx:alpine
@@ -160,6 +170,13 @@ LLM_CHAT_MODEL=deepseek-chat
 # Azure Speech (Round 16+ only — leave blank otherwise)
 AZURE_SPEECH_KEY=
 AZURE_SPEECH_REGION=southeastasia
+
+# Auth (Round 22+). JWT_SECRET is a real secret — generate one, e.g.:
+#   openssl rand -base64 48
+JWT_SECRET=replace-with-a-long-random-secret-min-32-bytes
+JWT_EXPIRY_DAYS=7
+# Google OAuth Web client id (public). Same value used by backend + frontend.
+GOOGLE_CLIENT_ID=replace-with-google-oauth-client-id.apps.googleusercontent.com
 ```
 
 ## Env vars table
@@ -175,6 +192,9 @@ AZURE_SPEECH_REGION=southeastasia
 | `AUDIO_STORAGE_DIR` | Round 11+ | Backend (in-container path) |
 | `AZURE_SPEECH_KEY` | Round 16+ | Backend → Azure |
 | `AZURE_SPEECH_REGION` | Round 16+ | Backend → Azure |
+| `JWT_SECRET` | Round 22+ | Backend; signs app JWT. **Secret** — required, min 32 bytes |
+| `JWT_EXPIRY_DAYS` | Round 22+ | Backend; app JWT lifetime (default 7) |
+| `GOOGLE_CLIENT_ID` | Round 22+ | Backend (token audience) **and** frontend build arg `VITE_GOOGLE_CLIENT_ID`. Public, not secret |
 | `DB_URL` / `DB_USER` / `DB_PASSWORD` | Round 6+ | Backend → Postgres |
 
 ## Security rules
@@ -183,6 +203,8 @@ AZURE_SPEECH_REGION=southeastasia
 - All external API calls originate from the backend.
 - `.env` is in `.gitignore`. Only `.env.example` is committed.
 - Don't log property objects that contain keys (`log.info(props.toString())` is forbidden).
+- `JWT_SECRET` is a real secret — never commit it, never log it, never expose it to the frontend. `GOOGLE_CLIENT_ID` is public and may appear in frontend build output.
+- The app must **fail to start** if `JWT_SECRET` or `GOOGLE_CLIENT_ID` is blank (validated in `AuthProperties`), so a misconfigured public deploy can't run with auth silently disabled.
 
 ## Volumes
 

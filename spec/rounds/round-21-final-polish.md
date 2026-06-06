@@ -2,7 +2,7 @@
 
 > **Milestone:** Finalization
 > **Effort:** S–M (30–45 min)
-> **Prerequisites:** Rounds 01–20 complete and verified
+> **Prerequisites:** Rounds 01–20 **and** Milestone 5 (Rounds 22–25) complete and verified. This round runs **last**, despite its lower number — it is the closing polish pass for the whole app including auth.
 > **Blocks if:** nothing
 
 ## Goal

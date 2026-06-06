@@ -27,9 +27,37 @@
 
 ## Boundaries
 
-- **Frontend never calls external APIs.** All third-party calls (DeepSeek, Azure) originate from the backend so keys stay server-side.
+- **Frontend never calls external APIs.** All third-party calls (DeepSeek, Azure) originate from the backend so keys stay server-side. **Exception:** the frontend talks to Google Sign-In directly to obtain a Google ID token — but only the backend verifies it (see Auth flow below).
 - **TTS service is internal.** Only the backend calls it (`http://tts-service:8001/tts`). The frontend never hits it directly.
 - **Database is internal.** Only the backend connects to PostgreSQL.
+- **Every `/api/**` endpoint requires a valid app JWT, except three public routes:** `/api/health`, `/api/auth/google`, and `/api/audio/**` (the last is fetched by a native `<audio>` tag that can't send the header; guarded by unguessable UUID filenames — see `05-backend.md`). For all authed routes the backend resolves the JWT to the current `User` and scopes data access to that user.
+
+## Auth flow (Round 22–25)
+
+```
+┌──────────┐  1. Google Sign-In (browser ↔ Google)
+│ Frontend │ ─────────────────────────────► Google
+│          │ ◄───────────── Google ID token (JWT signed by Google)
+└────┬─────┘
+     │ 2. POST /api/auth/google { idToken }
+     ▼
+┌──────────────────┐  3. GoogleIdTokenVerifier.verify(idToken)  ──► Google certs
+│ AuthController    │     (checks signature + audience = GOOGLE_CLIENT_ID)
+│  → AuthService    │  4. find-or-create User(email, googleSub, displayName)
+│                   │  5. JwtService.issue(user) → app JWT (HS256, multi-day exp)
+└────┬──────────────┘
+     │ 6. { token, user }
+     ▼
+  Frontend stores token; every later request sends `Authorization: Bearer <app-jwt>`
+     │
+     ▼
+┌──────────────────┐  JwtAuthFilter validates app JWT on each request,
+│ JwtAuthFilter     │  loads the User, sets SecurityContext.
+└──────────────────┘  Controllers read the current user via @AuthenticationPrincipal.
+```
+
+- The **Google ID token is used once** (at `/api/auth/google`); after that the app JWT is the only credential.
+- The app JWT is **stateless** — no server-side session table. Signed with `JWT_SECRET`.
 
 ## Per-feature data flow
 
@@ -97,7 +125,7 @@ No DB persistence for translation/writing in v1 (out of scope).
 
 ## Concurrency & timing assumptions
 
-- One user, sequential requests. No concurrent-write contention.
+- Multiple users may be active concurrently, but each user's requests are sequential and touch only their own rows (scoped by `user_id`), so there is no cross-user write contention. No row-level locking needed in v1.
 - DeepSeek chat: 60s backend timeout, 90s frontend timeout.
 - Azure pronunciation: 30s timeout on `recognizeOnceAsync().get(...)`.
 - edge-tts: ~2s typical; treat failure as non-fatal (chat continues without audio).
