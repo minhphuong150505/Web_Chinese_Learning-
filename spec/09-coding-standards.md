@@ -1,6 +1,6 @@
 # 09 — Coding Standards
 
-> Read `/home/phuong/Documents/Web_Chinese_Learning/Claude.md` first. The points below are project-specific additions, not replacements.
+> Read `../Claude.md` first. The points below are project-specific additions, not replacements.
 
 ## Mental model
 
@@ -69,5 +69,7 @@ The implementer MUST stop and ask the user when:
 When a round's verification checklist is all green:
 
 1. Update the status in `spec/rounds/README.md` (change `[ ]` to `[x]` for that round).
-2. Report to the user: "Round NN done. Verified: <list>. Next round: NN+1 (<title>)."
-3. **Stop.** Do not start the next round without user approval.
+2. Update `spec/rounds/CHECKPOINT.md` with a compact handoff: completed round, files changed, verification run, known caveats, active services, and next round.
+3. Reset working assumptions by re-reading `spec/rounds/README.md`, `spec/rounds/CHECKPOINT.md`, and the next round file. This is the project-level substitute for clearing model memory; the assistant cannot delete the chat context itself.
+4. Report briefly: "Round NN done. Verified: <list>. Continuing to Round NN+1 (<title>)."
+5. Continue automatically to the next unchecked round unless a stop-and-ask trigger or blocking prerequisite applies.

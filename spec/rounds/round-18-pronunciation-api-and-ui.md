@@ -1,25 +1,34 @@
-# Round 18 — Pronunciation API + UI
+# Round 18 — Pronunciation API
 
 > **Milestone:** M3
-> **Effort:** M–L (60–90 min)
+> **Effort:** M (45–60 min)
 > **Prerequisites:** Round 17 complete
 > **Blocks if:** nothing
 
 ## Goal
 
-User records a sentence in the browser → blob uploads as multipart → backend returns scores → `ScorePanel` renders them.
+User records a sentence in the browser → blob uploads as multipart → backend returns scores → the already-built `ScorePanel` renders them.
+
+The UI side of this feature — types, hook, `ScorePanel`, and the wired-up `PronunciationTab` — is **already built and running against mock data** (see `spec/06-frontend.md` § Pre-built frontend & the mock seam). This round is almost entirely backend: build the controller, then retire the two pronunciation mock handlers so the existing screen talks to it.
 
 ## Files to create
 
 - `backend/src/main/java/com/chineseapp/controller/PronunciationController.java`
 - `backend/src/test/java/com/chineseapp/controller/PronunciationControllerTest.java`
-- `frontend/src/types/pronunciation.ts`
-- `frontend/src/hooks/usePronunciation.ts`
-- `frontend/src/features/pronunciation/ScorePanel.tsx`
+
+## Already built (do not recreate)
+
+- `frontend/src/types/pronunciation.ts` — mirrors the backend DTOs (`PronunciationResponse`, `WordScore`, `SyllableScore`, `PhonemeScore`).
+- `frontend/src/hooks/usePronunciation.ts` — `useAssessPronunciation()` (multipart `FormData` mutation to `/pronunciation/assess`) and `usePronunciationHistory()`.
+- `frontend/src/features/pronunciation/ScorePanel.tsx` — four metric cards (accuracy / fluency / completeness / prosody) + per-word table (word, score, syllables as `"ni3 / hao3"`), band-colored green ≥85 / amber 60–84 / red <60.
+- `frontend/src/features/pronunciation/PronunciationTab.tsx` — records via `RecordButton`, submits `{ blob, referenceText: REFERENCE }`, renders `ScorePanel` on success, lists recent attempts.
+
+If your backend `PronunciationResponse` shape differs from `frontend/src/types/pronunciation.ts`, **adjust the backend DTO to match** — that's the contract the UI was built against.
 
 ## Files to modify
 
-- `frontend/src/features/pronunciation/PronunciationTab.tsx` — wire the recorded blob to the API; show `ScorePanel` when result arrives.
+- `frontend/src/mocks/server.ts` — delete the pronunciation mock handlers.
+- `frontend/src/mocks/data.ts` — delete fixtures that become unused once those handlers are gone.
 
 ## Steps
 
@@ -59,53 +68,29 @@ User records a sentence in the browser → blob uploads as multipart → backend
    - Empty multipart → 400.
    - Happy path with mocked service → returns expected `PronunciationResponse`.
 
-### Frontend
+### Frontend (mock retirement only)
 
-3. `types/pronunciation.ts` — mirror the backend DTOs.
-4. `hooks/usePronunciation.ts`:
-   ```ts
-   export function useAssessPronunciation() {
-     return useMutation({
-       mutationFn: async ({ blob, referenceText }: { blob: Blob; referenceText: string }) => {
-         const fd = new FormData();
-         fd.append('audio', blob, 'recording.webm');
-         fd.append('referenceText', referenceText);
-         const r = await apiClient.post<PronunciationResponse>('/pronunciation/assess', fd, {
-           headers: { 'Content-Type': 'multipart/form-data' },
-         });
-         return r.data;
-       },
-     });
-   }
-   ```
-5. `ScorePanel.tsx` per `spec/06-frontend.md` § `ScorePanel.tsx`:
-   - Four numeric cards (accuracy / fluency / completeness / prosody).
-   - Per-word table with three columns: word, score, syllables (`"ni3 / hao3"`).
-   - Background color rule: green ≥85, yellow 60–84, red <60.
-6. `PronunciationTab.tsx`:
-   ```tsx
-   const REFERENCE = '你好，今天天气怎么样？';
-   // ... state: lastBlob, result
-   // RecordButton onComplete -> setLastBlob
-   // Submit button -> mutate({ blob, referenceText: REFERENCE })
-   // on success -> setResult(data)
-   // <ScorePanel result={result} /> when result
-   ```
-   - Disable Submit when no blob or while mutation pending.
+3. In `frontend/src/mocks/server.ts`, remove:
+   - `mock.onPost('/pronunciation/assess')`
+   - `mock.onGet('/pronunciation/history')`
+4. In `frontend/src/mocks/data.ts`, remove now-unused exports (`makePronunciationResult`, `makePronunciationHistory`, `PRONUNCIATION_REFERENCE_TEXT` if the tab hardcodes its own copy) and their dangling imports in `server.ts`.
+5. Run the app with the backend up. `/pronunciation/assess` and `/pronunciation/history` now fall through (`onNoMatch: 'passthrough'`) to the real backend — no component change needed.
 
 ## References
 
 - `spec/05-backend.md` § REST endpoints
-- `spec/06-frontend.md` § `ScorePanel.tsx`, `RecordButton.tsx`
+- `spec/06-frontend.md` § `ScorePanel.tsx`, `RecordButton.tsx`, § Pre-built frontend & the mock seam
 - `spec/10-pitfalls.md` § multipart field name mismatch
+- `spec/11-sample-content.md` §11.2 (reference sentence)
 
 ## Verification
 
 - [ ] `./mvnw test` passes.
-- [ ] Record the reference sentence well → 4 high scores + per-word table mostly green.
-- [ ] Mispronounce a syllable deliberately → that word's row goes yellow/red.
+- [ ] Record the reference sentence well → 4 high scores + per-word table mostly green, sourced from the real Azure-backed assessment (no longer the scripted mock numbers).
+- [ ] Mispronounce a syllable deliberately → that word's row goes amber/red.
 - [ ] `psql ... -c "SELECT count(*) FROM pronunciation_scores"` increments by 1 per submission.
-- [ ] Without mic permission → friendly error in UI (already done in Round 14).
+- [ ] "Recent attempts" list reflects real history from `/pronunciation/history`, persists across refresh.
+- [ ] Without mic permission → friendly error in UI (already verified in Round 14).
 - [ ] No console errors.
 
 ## When complete

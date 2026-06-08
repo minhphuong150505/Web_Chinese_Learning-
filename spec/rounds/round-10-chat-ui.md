@@ -1,155 +1,84 @@
 # Round 10 — Chat UI
 
 > **Milestone:** M1
-> **Effort:** L (60–90 min)
+> **Effort:** S (20–30 min)
 > **Prerequisites:** Round 09 complete (backend chat working via curl)
 > **Blocks if:** nothing
 
 ## Goal
 
-Browser-based chat works: user types Chinese, sees their bubble, AI reply appears as another bubble. History persists across page refreshes. No audio yet (Round 13).
+Browser-based chat works against the **real backend**: user types Chinese, sees their bubble, AI reply appears as another bubble. History persists across page refreshes. No audio yet (Round 13).
 
-## Files to create
+The chat UI — types, API client, query setup, hooks, and every component listed below — is **already built and running against mock data** (see `spec/06-frontend.md` § Pre-built frontend & the mock seam). This round does not write any new frontend UI; it retires the chat mock handlers so the existing screen talks to the backend you just built.
+
+## Already built (do not recreate)
 
 - `frontend/src/types/chat.ts`
-- `frontend/src/lib/apiClient.ts`
-- `frontend/src/lib/queryClient.ts`
-- `frontend/src/hooks/useConversation.ts`
-- `frontend/src/hooks/useSendMessage.ts`
-- `frontend/src/components/Layout.tsx`
-- `frontend/src/components/TabBar.tsx`
-- `frontend/src/components/Spinner.tsx`
-- `frontend/src/features/chat/ChatTab.tsx`
-- `frontend/src/features/chat/MessageList.tsx`
-- `frontend/src/features/chat/MessageBubble.tsx`
-- `frontend/src/features/chat/MessageComposer.tsx`
+- `frontend/src/lib/apiClient.ts`, `frontend/src/lib/queryClient.ts`
+- `frontend/src/hooks/useConversation.ts`, `frontend/src/hooks/useSendMessage.ts`
+- `frontend/src/components/Layout.tsx`, `TabBar.tsx`, `Spinner.tsx`
+- `frontend/src/features/chat/ChatTab.tsx`, `MessageList.tsx`, `MessageBubble.tsx`, `MessageComposer.tsx`
+- `frontend/src/main.tsx` (already wraps the tree in `<QueryClientProvider>`)
+- `frontend/src/App.tsx` (chat tab already wired and active by default)
+
+Confirm `types/chat.ts` matches the backend DTOs you just shipped:
+
+```ts
+export type Role = 'user' | 'assistant' | 'system';
+
+export interface MessageDto {
+  id: string;
+  role: Role;
+  content: string;
+  audioUrl: string | null;
+  createdAt: string;
+}
+
+export interface ConversationDto {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatResponse {
+  userMessage: MessageDto;
+  assistantMessage: MessageDto;
+}
+```
+
+If your backend DTOs differ, **change the backend to match this contract** (it's the one the whole frontend was built against) rather than editing frontend types.
 
 ## Files to modify
 
-- `frontend/src/App.tsx` — replace placeholder with the chat tab layout.
-- `frontend/src/main.tsx` — wrap `<App />` with `<QueryClientProvider>`.
+- `frontend/src/mocks/server.ts` — delete the chat mock handlers.
+- `frontend/src/mocks/data.ts` — delete fixtures that become unused once those handlers are gone.
 
 ## Steps
 
-1. Create `types/chat.ts` mirroring backend DTOs:
-   ```ts
-   export type Role = 'user' | 'assistant' | 'system';
-
-   export interface MessageDto {
-     id: string;
-     role: Role;
-     content: string;
-     audioUrl: string | null;
-     createdAt: string;
-   }
-
-   export interface ConversationDto {
-     id: string;
-     title: string;
-     createdAt: string;
-     updatedAt: string;
-   }
-
-   export interface ChatResponse {
-     userMessage: MessageDto;
-     assistantMessage: MessageDto;
-   }
-   ```
-2. Create `lib/apiClient.ts` and `lib/queryClient.ts` exactly per `spec/06-frontend.md` § "API client" and "TanStack Query setup".
-3. Wrap app in `main.tsx`:
-   ```tsx
-   import { QueryClientProvider } from '@tanstack/react-query';
-   import { queryClient } from './lib/queryClient';
-
-   createRoot(document.getElementById('root')!).render(
-     <QueryClientProvider client={queryClient}>
-       <App />
-     </QueryClientProvider>
-   );
-   ```
-4. Create `hooks/useConversation.ts`:
-   - Query: list conversations.
-   - On mount with empty list → create one via mutation, then invalidate.
-   - Expose current conversation id + messages query.
-   ```ts
-   export function useConversation() {
-     const qc = useQueryClient();
-     const list = useQuery({
-       queryKey: ['conversations'],
-       queryFn: () => apiClient.get<ConversationDto[]>('/conversations').then(r => r.data),
-     });
-     // auto-create if empty
-     useEffect(() => {
-       if (list.data && list.data.length === 0) {
-         apiClient.post<ConversationDto>('/conversations').then(() =>
-           qc.invalidateQueries({ queryKey: ['conversations'] })
-         );
-       }
-     }, [list.data, qc]);
-     const current = list.data?.[0];
-     const messages = useQuery({
-       queryKey: ['messages', current?.id],
-       queryFn: () => apiClient.get<MessageDto[]>(`/conversations/${current!.id}/messages`).then(r => r.data),
-       enabled: !!current,
-     });
-     return { conversation: current, messages };
-   }
-   ```
-5. Create `hooks/useSendMessage.ts`:
-   ```ts
-   export function useSendMessage(conversationId: string | undefined) {
-     const qc = useQueryClient();
-     return useMutation({
-       mutationFn: (content: string) =>
-         apiClient.post<ChatResponse>(`/conversations/${conversationId}/messages`, { content })
-                  .then(r => r.data),
-       onSuccess: () => qc.invalidateQueries({ queryKey: ['messages', conversationId] }),
-     });
-   }
-   ```
-6. Build components:
-   - `Layout.tsx`: container with header "Chinese Learning App" + children.
-   - `TabBar.tsx`: 4 tabs; only "Chat" enabled; others tooltipped "Coming in Round N".
-   - `MessageBubble.tsx`: per `spec/06-frontend.md` § "Component contracts". For now audio playback is a no-op (will be revisited in Round 13 — keep the `audioUrl` prop in the type even if unused).
-   - `MessageList.tsx`: maps messages to bubbles. Auto-scroll to bottom on update.
-   - `MessageComposer.tsx`: textarea + Send button. Disables send while mutation pending. Submit on Cmd/Ctrl+Enter.
-   - `ChatTab.tsx`: composes the above.
-   - `Spinner.tsx`: simple Tailwind spinner; shown while `isPending`.
-7. Update `App.tsx`:
-   ```tsx
-   import { useState } from 'react';
-   import { Layout } from './components/Layout';
-   import { TabBar } from './components/TabBar';
-   import { ChatTab } from './features/chat/ChatTab';
-
-   type Tab = 'chat' | 'pronounce' | 'translate' | 'write';
-
-   export default function App() {
-     const [tab, setTab] = useState<Tab>('chat');
-     return (
-       <Layout>
-         <TabBar active={tab} onChange={setTab}
-           enabled={{ chat: true, pronounce: false, translate: false, write: false }} />
-         {tab === 'chat' && <ChatTab />}
-       </Layout>
-     );
-   }
-   ```
+1. In `frontend/src/mocks/server.ts`, remove these handlers (and the in-closure `messages`/`conversationCreated` state they use):
+   - `mock.onGet('/conversations')`
+   - `mock.onPost('/conversations')`
+   - `mock.onGet(/\/conversations\/[\w-]+\/messages/)`
+   - `mock.onPost(/\/conversations\/[\w-]+\/messages/)`
+2. In `frontend/src/mocks/data.ts`, remove now-unused exports (`CHAT_GREETING`, `CHAT_SCENARIO_EN`, `nextAssistantReply`, `CHAT_SUGGESTIONS`, `MOCK_CONVERSATION`, `mockId` if nothing else uses it) and their now-dangling imports in `server.ts`.
+   - **Keep** anything still used by pronunciation/translation/writing/auth mocks (those handlers retire in later rounds).
+3. Run `npm run dev` with the backend up. Requests to `/conversations` and `/conversations/:id/messages` now fall through (`onNoMatch: 'passthrough'`) to the real backend — no main.tsx or component change needed.
 
 ## References
 
-- `spec/06-frontend.md`
+- `spec/06-frontend.md` § Pre-built frontend & the mock seam, § API client, § TanStack Query setup
 - `spec/05-backend.md` § REST endpoints (for DTO shapes)
 - `spec/10-pitfalls.md` § CORS, Tailwind JIT
 
 ## Verification
 
 - [ ] `npm run dev` (Vite) + backend running in compose → open `http://localhost:5173`.
-- [ ] First load: empty state shows; one conversation is auto-created.
-- [ ] Type "你好" → after a short wait, two bubbles appear (user + assistant in Chinese).
-- [ ] Refresh page → both bubbles still visible (history persists).
+- [ ] First load: empty state shows; one conversation is auto-created (via the real `POST /conversations`).
+- [ ] Type "你好" → after a short wait, two bubbles appear (user + assistant in Chinese), driven by the real `LlmClient`-backed reply (no longer the scripted mock turns).
+- [ ] Refresh page → both bubbles still visible (history persists in Postgres, not localStorage).
 - [ ] Empty message can't be sent (Send button disabled).
-- [ ] DevTools → Network: no requests to `api.deepseek.com` from frontend (all go via `/api/` to backend).
+- [ ] DevTools → Network: requests to `/conversations*` show `200` from `localhost` (backend), not the 500 ms mock delay; no requests to `api.deepseek.com` directly from the frontend.
 - [ ] DevTools → Sources: searching for "Bearer" or `LLM_API_KEY` finds nothing.
 - [ ] `npm run build` succeeds with no TS errors.
 

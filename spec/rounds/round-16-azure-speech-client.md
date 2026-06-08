@@ -41,6 +41,7 @@
    ```
 2. Create `AzureSpeechProperties` `@ConfigurationProperties("app.azure-speech")`:
    - `key`, `region`, `language` (default `zh-CN`).
+   - Do not add `@Component`; `@ConfigurationPropertiesScan` was enabled in Round 7.
 3. Create `AzureSpeechClient`:
    ```java
    @Component
@@ -61,6 +62,7 @@
                     PronunciationAssessmentGranularity.Phoneme,
                     true)) {
 
+               pac.enableProsodyAssessment();   // REQUIRED: prosody score is null/0 without this
                pac.applyTo(recognizer);
                SpeechRecognitionResult result = recognizer.recognizeOnceAsync().get(30, TimeUnit.SECONDS);
                PronunciationAssessmentResult par = PronunciationAssessmentResult.fromResult(result);
@@ -91,10 +93,10 @@
    }
    ```
    - Use try-with-resources for all SDK objects to avoid native handle leaks.
-   - `prosody` may be `null` if the SDK couldn't produce it; keep nullable.
+   - Prosody: `enableProsodyAssessment()` (step above) is what makes Azure return a prosody score — without it `getProsodyScore()` is always 0. Note `getProsodyScore()` returns a primitive `double`, so it autoboxes into the `Double prosody` field (never literally `null`); the field stays `Double` only so the rest of the chain (DTO, DB `NUMERIC(5,2)` nullable, UI) can still represent "no prosody" defensively.
 4. Write `AzureSpeechClientSmokeTest`:
    - Only runs when `AZURE_SPEECH_KEY` is set (`@EnabledIfEnvironmentVariable`).
-   - Generates a sample WAV via ffmpeg (16k mono silence is fine — Azure will return low scores, but the call should succeed).
+   - Use a short 16 kHz mono WAV containing spoken Mandarin from a local test fixture, or generate one from TTS during test setup and convert it to WAV. Do not use pure silence as the main smoke fixture because Azure may return an empty or non-assessment result.
    - Asserts `AssessmentRawResult` is non-null and `detailedJson` is non-blank.
 5. **Do not commit a hardcoded key in this test.**
 

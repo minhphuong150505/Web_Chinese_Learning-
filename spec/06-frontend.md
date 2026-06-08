@@ -30,6 +30,25 @@ main.tsx
 
 A small header shows the signed-in user's name + a "Sign out" button (clears token, returns to `LoginScreen`).
 
+## Pre-built frontend & the mock seam
+
+**The entire frontend — every screen, component, hook, and type in this document — is already implemented against a mock API**, built up front from the Claude Design prototype before any backend round runs. This is intentional: it lets the whole UI/UX be designed, styled, and click-tested in isolation, so that the backend rounds (10, 13, 14, 18, 19, 20, 25) don't need to touch the frontend at all — they only need to stand up the real endpoint and then retire the corresponding mock.
+
+The seam is a single module, `frontend/src/mocks/server.ts`, installed once in `main.tsx`:
+
+```ts
+installMockApi(apiClient); // intercepts requests via axios-mock-adapter, answers with realistic fixtures
+```
+
+`installMockApi` wraps `apiClient` with `axios-mock-adapter` configured with `onNoMatch: 'passthrough'` — any request that doesn't match a registered handler falls through to the real network call. This means handlers can be retired **one at a time, per round**, as each backend endpoint comes online; everything not yet retired keeps working from fixtures shaped exactly like the real DTOs (see `frontend/src/mocks/data.ts` and `frontend/src/types/*`).
+
+Each backend round's job is therefore:
+1. Build the real endpoint(s) per its spec steps (unchanged).
+2. Delete that round's `mock.on...(...)` block(s) — and now-unused fixture helpers — from `frontend/src/mocks/server.ts` / `mocks/data.ts`.
+3. Re-run the round's verification against the **real** response, using the UI that's already there.
+
+No frontend file listed as "already built" in a round below needs to change to make that round's feature work — if the DTO shapes match this spec (they do, the mocks were written to `satisfies` them), the swap is invisible to hooks and components. Round 21 (final polish) deletes whatever remains of `frontend/src/mocks/` and the `installMockApi(apiClient)` call once every handler has been retired.
+
 ## Component contracts
 
 ### `MessageBubble.tsx`

@@ -1,0 +1,55 @@
+package com.chineseapp.service;
+
+import com.chineseapp.client.EdgeTtsClient;
+import com.chineseapp.config.TtsProperties;
+import com.chineseapp.service.impl.TtsServiceImpl;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+class TtsServiceImplTest {
+
+    @TempDir
+    private Path tempDir;
+
+    @Test
+    void synthesize_givenClientBytes_thenWritesMp3AndReturnsFilename() throws Exception {
+        EdgeTtsClient client = mock(EdgeTtsClient.class);
+        TtsService service = new TtsServiceImpl(client, properties(tempDir));
+        byte[] bytes = new byte[] { 1, 2, 3, 4 };
+        when(client.synthesize("你好")).thenReturn(bytes);
+
+        String filename = service.synthesize("你好");
+
+        assertThat(filename).matches("^[a-f0-9-]+\\.mp3$");
+        assertThat(Files.readAllBytes(tempDir.resolve(filename))).isEqualTo(bytes);
+    }
+
+    @Test
+    void synthesize_givenClientThrows_thenReturnsNullAndCreatesNoFile() throws Exception {
+        EdgeTtsClient client = mock(EdgeTtsClient.class);
+        TtsService service = new TtsServiceImpl(client, properties(tempDir));
+        when(client.synthesize("你好")).thenThrow(new RuntimeException("tts unavailable"));
+
+        String filename = service.synthesize("你好");
+
+        assertThat(filename).isNull();
+        try (var files = Files.list(tempDir)) {
+            assertThat(files).isEmpty();
+        }
+    }
+
+    private static TtsProperties properties(Path storageDir) {
+        TtsProperties properties = new TtsProperties();
+        properties.setBaseUrl("http://localhost:8001");
+        properties.setVoice("zh-CN-XiaoxiaoNeural");
+        properties.setStorageDir(storageDir.toString());
+        return properties;
+    }
+}

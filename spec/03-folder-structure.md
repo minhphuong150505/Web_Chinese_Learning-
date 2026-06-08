@@ -3,7 +3,7 @@
 This tree is the **target** end state. Not every file exists in every round — see each round file for which files are added in that round.
 
 ```
-Web_Chinese_Learning/
+Web_Chinese_Learning-/
 ├── Claude.md                        # behavioral rules (DO NOT EDIT)
 ├── PROMPT_CLAUDE_CODE.md            # original user prompt (DO NOT EDIT)
 ├── SPEC.md                          # pointer to spec/

@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: chinese-learning-app
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/chinese_app}
+    username: ${DB_USER:chinese}
+    password: ${DB_PASSWORD:chinese}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+server:
+  port: 8080
+
+app:
+  llm:
+    provider: ${LLM_PROVIDER:deepseek}
+    base-url: ${LLM_BASE_URL:https://api.deepseek.com}
+    api-key: ${LLM_API_KEY:test-api-key}
+    chat-model: ${LLM_CHAT_MODEL:deepseek-v4-flash}
+    reasoning-model: ${LLM_REASONING_MODEL:deepseek-v4-pro}
+    timeout-seconds: ${LLM_TIMEOUT_SECONDS:60}
+  tts:
+    base-url: ${TTS_BASE_URL:http://tts-service:8001}
+    voice: ${TTS_VOICE:zh-CN-XiaoxiaoNeural}
+    storage-dir: ${AUDIO_STORAGE_DIR:/data/audio}
+  azure-speech:
+    key: ${AZURE_SPEECH_KEY:}
+    region: ${AZURE_SPEECH_REGION:southeastasia}
+    language: zh-CN
+  auth:
+    jwt:
+      secret: ${JWT_SECRET:test-jwt-secret-at-least-32-bytes-long-000}
+      expiry-days: ${JWT_EXPIRY_DAYS:7}
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:test-google-client-id.apps.googleusercontent.com}
+
+logging:
+  level:
+    com.chineseapp: INFO
+    org.springframework.web: INFO

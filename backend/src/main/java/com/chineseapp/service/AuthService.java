@@ -1,0 +1,15 @@
+package com.chineseapp.service;
+
+import com.chineseapp.dto.auth.AuthResponse;
+import com.chineseapp.dto.auth.UserDto;
+
+import java.util.UUID;
+
+public interface AuthService {
+
+    AuthResponse loginWithGoogle(String idToken);
+
+    AuthResponse loginWithMock(String email, String password);
+
+    UserDto me(UUID userId);
+}

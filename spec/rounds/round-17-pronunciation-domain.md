@@ -79,7 +79,7 @@ V2 migration creates `pronunciation_scores`. JPA entity + repo + DTOs. `Pronunci
    - Cleanup: `webm.delete()`, `wav.delete()` in a finally block. Ignore failures.
    - Wrap parse errors as `ApiException(HttpStatus.BAD_GATEWAY, "Azure response unparseable")`.
 6. Add `historyTop20()` method returning `List<PronunciationResponse>` from the repo.
-7. Write `PronunciationServiceTest`:
+7. Write `PronunciationServiceImplTest`:
    - Mock `AudioConversionService` and `AzureSpeechClient`.
    - Provide a captured-shape Azure JSON sample as a test resource (`src/test/resources/azure-sample.json`) — extract from Azure docs or a one-time real call.
    - Assert `WordScore` count and first word's `accuracyScore` match the sample.

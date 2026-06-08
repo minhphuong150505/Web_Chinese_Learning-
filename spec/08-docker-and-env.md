@@ -43,7 +43,7 @@ services:
       DB_PASSWORD: chinese
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
       LLM_API_KEY: ${LLM_API_KEY}
-      LLM_CHAT_MODEL: ${LLM_CHAT_MODEL:-deepseek-chat}
+      LLM_CHAT_MODEL: ${LLM_CHAT_MODEL:-deepseek-v4-flash}
       TTS_BASE_URL: http://tts-service:8001
       TTS_VOICE: zh-CN-XiaoxiaoNeural
       AUDIO_STORAGE_DIR: /data/audio
@@ -165,7 +165,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
 # DeepSeek (https://api-docs.deepseek.com/)
 LLM_BASE_URL=https://api.deepseek.com
 LLM_API_KEY=sk-replace-me
-LLM_CHAT_MODEL=deepseek-chat
+LLM_CHAT_MODEL=deepseek-v4-flash
 
 # Azure Speech (Round 16+ only — leave blank otherwise)
 AZURE_SPEECH_KEY=

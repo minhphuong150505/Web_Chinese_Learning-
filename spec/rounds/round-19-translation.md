@@ -1,13 +1,15 @@
 # Round 19 — Translation feature
 
 > **Milestone:** M4 (Translation & Writing feedback)
-> **Effort:** M (40–60 min)
+> **Effort:** S–M (30–45 min)
 > **Prerequisites:** Round 18 complete
 > **Blocks if:** nothing (uses the same `LLM_API_KEY` already in `.env`)
 
 ## Goal
 
 User types Vietnamese or Chinese, picks direction, clicks Translate, sees the result. No persistence.
+
+The UI side — types, hook, two-pane form, direction toggle — is **already built and running against mock data** (see `spec/06-frontend.md` § Pre-built frontend & the mock seam). This round is mostly backend: build the service + controller, then retire the translation mock handler.
 
 ## Files to create
 
@@ -17,14 +19,26 @@ User types Vietnamese or Chinese, picks direction, clicks Translate, sees the re
 - `backend/src/main/java/com/chineseapp/service/impl/TranslationServiceImpl.java` (`@Service`)
 - `backend/src/main/java/com/chineseapp/controller/TranslationController.java`
 - `backend/src/test/java/com/chineseapp/service/TranslationServiceImplTest.java`
-- `frontend/src/types/translation.ts`
-- `frontend/src/hooks/useTranslation.ts`
-- `frontend/src/features/translation/TranslationTab.tsx`
-- `frontend/src/features/translation/TranslationForm.tsx`
+
+## Already built (do not recreate)
+
+- `frontend/src/types/translation.ts`:
+  ```ts
+  export type Direction = 'VI_TO_ZH' | 'ZH_TO_VI';
+  export interface TranslationRequest { text: string; direction: Direction }
+  export interface TranslationResponse { translation: string }
+  ```
+- `frontend/src/hooks/useTranslation.ts` — mutation hook posting `{ text, direction }` to `/translation`.
+- `frontend/src/features/translation/TranslationForm.tsx` — two-pane layout (textarea + direction toggle/swap on the left, read-only result on the right); Translate button disabled while empty/pending.
+- `frontend/src/features/translation/TranslationTab.tsx` — wraps the form with a heading.
+- The Translate tab is already enabled in `App.tsx`.
+
+If your backend `TranslationRequest`/`TranslationResponse` differ from the above, **adjust the backend DTOs to match** — that's the contract the UI was built against.
 
 ## Files to modify
 
-- `frontend/src/App.tsx` — enable Translate tab; route to `TranslationTab`.
+- `frontend/src/mocks/server.ts` — delete the translation mock handler.
+- `frontend/src/mocks/data.ts` — delete fixtures that become unused once that handler is gone.
 
 ## Steps
 
@@ -32,9 +46,9 @@ User types Vietnamese or Chinese, picks direction, clicks Translate, sees the re
 
 1. DTOs:
    ```java
-   public enum Direction { VI_TO_ZH, ZH_TO_VI }
-
-   public record TranslationRequest(@NotBlank String text, @NotNull Direction direction) {}
+   public record TranslationRequest(@NotBlank String text, @NotNull Direction direction) {
+       public enum Direction { VI_TO_ZH, ZH_TO_VI }
+   }
    public record TranslationResponse(String translation) {}
    ```
 2. `TranslationService` interface + `TranslationServiceImpl` (`@Service`) per `spec/05-backend.md` § "Service interface pattern". Interface: `TranslationResponse translate(TranslationRequest req)` (no DB, no user scoping needed — only a valid token is required at the controller):
@@ -54,7 +68,7 @@ User types Vietnamese or Chinese, picks direction, clicks Translate, sees the re
 
        private final LlmClient llm;
 
-       public TranslationService(LlmClient llm) { this.llm = llm; }
+       public TranslationServiceImpl(LlmClient llm) { this.llm = llm; }
 
        public TranslationResponse translate(TranslationRequest req) {
            String system = switch (req.direction()) {
@@ -85,30 +99,23 @@ User types Vietnamese or Chinese, picks direction, clicks Translate, sees the re
    ```
 4. Service test: mock `LlmClient`, assert system prompt is the VI→ZH one when direction is `VI_TO_ZH`, etc.
 
-### Frontend
+### Frontend (mock retirement only)
 
-5. `types/translation.ts`:
-   ```ts
-   export type Direction = 'VI_TO_ZH' | 'ZH_TO_VI';
-   export interface TranslationResponse { translation: string }
-   ```
-6. `useTranslation.ts` — mutation hook posting to `/translation`.
-7. `TranslationForm.tsx`:
-   - Two-pane layout: left = textarea + direction selector, right = output read-only.
-   - Direction toggle (radio or two buttons): "VI → ZH" / "ZH → VI".
-   - Translate button calls the mutation; output appears on success.
-8. `TranslationTab.tsx`: wraps the form with a heading.
-9. Enable `translate: true` in `App.tsx` TabBar.
+5. In `frontend/src/mocks/server.ts`, remove `mock.onPost('/translation')`.
+6. In `frontend/src/mocks/data.ts`, remove now-unused exports (`TRANSLATION_SAMPLES`, `mockTranslate`) and their dangling imports in `server.ts`.
+7. Run the app with the backend up. `/translation` now falls through (`onNoMatch: 'passthrough'`) to the real backend — no component change needed.
 
 ## References
 
 - `spec/05-backend.md` § Service template, Controller template
+- `spec/06-frontend.md` § Pre-built frontend & the mock seam
 - `spec/07-external-apis.md` §7.1 system prompts
+- `spec/11-sample-content.md` §11.3 (sample pairs for manual verification)
 
 ## Verification
 
 - [ ] `./mvnw test` passes.
-- [ ] In the UI, "Tôi đang học tiếng Trung" + VI→ZH → returns "我在学中文" (or close).
+- [ ] In the UI, "Tôi đang học tiếng Trung" + VI→ZH → returns "我在学中文" (or close) — a real LLM response, no longer the `[demo translation to ...]` mock stub.
 - [ ] "我爱你" + ZH→VI → returns "Tôi yêu bạn" (or close).
 - [ ] Empty text → Translate disabled.
 - [ ] Backend logs do not echo the user text at INFO (privacy).

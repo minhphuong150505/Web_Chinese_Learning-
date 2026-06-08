@@ -60,8 +60,10 @@ Backend has ffmpeg available and an `AudioConversionService.toWav16kMono(File we
                    throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Audio conversion failed");
                }
                return output;
-           } catch (IOException | InterruptedException e) {
+           } catch (InterruptedException e) {
                Thread.currentThread().interrupt();
+               throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Audio conversion error: " + e.getMessage());
+           } catch (IOException e) {
                throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Audio conversion error: " + e.getMessage());
            }
        }

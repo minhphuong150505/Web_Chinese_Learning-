@@ -16,8 +16,8 @@ Backend exposes `GET /api/audio/{filename}` to serve generated MP3s. `Conversati
 
 ## Files to modify
 
-- `backend/src/main/java/com/chineseapp/service/ConversationService.java` — inject `TtsService`, call `synthesize(...)` for assistant messages, set `audioPath`.
-- `backend/src/test/java/com/chineseapp/service/ConversationServiceTest.java` — update to mock `TtsService`.
+- `backend/src/main/java/com/chineseapp/service/impl/ConversationServiceImpl.java` — inject `TtsService`, call `synthesize(...)` for assistant messages, set `audioPath`.
+- `backend/src/test/java/com/chineseapp/service/ConversationServiceImplTest.java` — update to mock `TtsService`.
 
 ## Steps
 
@@ -53,11 +53,11 @@ Backend exposes `GET /api/audio/{filename}` to serve generated MP3s. `Conversati
        }
    }
    ```
-2. Inject `TtsService` into `ConversationService` constructor. In `sendMessage`:
+2. Inject `TtsService` into `ConversationServiceImpl` constructor. In `sendMessage`:
    - After persisting the **user** message and getting the assistant text from `LlmClient`, call `String audioPath = tts.synthesize(assistantText);`.
    - Set `audioPath` on the assistant `Message` before saving.
    - `MessageDto.from(...)` already builds the `audioUrl` from `audioPath` per Round 8.
-3. Update `ConversationServiceTest`:
+3. Update `ConversationServiceImplTest`:
    - Mock `TtsService.synthesize(any())` to return `"abc.mp3"`.
    - Assert assistant message has `audioPath = "abc.mp3"` and `MessageDto.audioUrl = "/api/audio/abc.mp3"`.
    - One additional test: when `TtsService` returns `null` → assistant message saved with `audioPath = null`.

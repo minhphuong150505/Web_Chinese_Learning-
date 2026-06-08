@@ -1,101 +1,45 @@
-# Round 14 — Audio recorder hook + RecordButton
+# Round 14 — Audio recorder smoke test
 
 > **Milestone:** M3 (Pronunciation)
-> **Effort:** M (40–60 min)
+> **Effort:** XS (10–15 min)
 > **Prerequisites:** Round 13 complete
-> **Blocks if:** nothing (no API needed yet — just records a blob and logs its size)
+> **Blocks if:** nothing (no API needed yet — just records a blob and confirms it's non-empty)
 
 ## Goal
 
-Frontend can capture microphone audio via `MediaRecorder`, produce a WebM/Opus blob, and surface it via a `RecordButton` component. No backend call yet — just confirm the blob is non-empty.
+Confirm the frontend can capture microphone audio via `MediaRecorder` and produce a non-empty WebM/Opus blob. **`useAudioRecorder`, `RecordButton`, and the full `PronunciationTab` (including the `ScorePanel` originally scoped for Round 18) are already built and running against mock data** — see `spec/06-frontend.md` § Pre-built frontend & the mock seam. This round is a manual smoke test of the recorder with no backend dependency; it doesn't touch the API at all, so there's nothing to "wire up" yet.
 
-## Files to create
+No frontend code changes are expected.
 
-- `frontend/src/hooks/useAudioRecorder.ts`
-- `frontend/src/features/pronunciation/RecordButton.tsx`
-- `frontend/src/features/pronunciation/PronunciationTab.tsx` (minimal placeholder for this round)
+## Already built (do not recreate)
 
-## Files to modify
+- `frontend/src/hooks/useAudioRecorder.ts` — `{ isRecording, start, stop, error }`, exactly per `spec/06-frontend.md` § `useAudioRecorder` hook.
+- `frontend/src/features/pronunciation/RecordButton.tsx` — `idle | recording | processing` states; `{ onComplete: (blob: Blob) => void; disabled?: boolean }`.
+- `frontend/src/features/pronunciation/PronunciationTab.tsx` — already shows the reference sentence, `RecordButton`, `ScorePanel`, and attempt history wired to mock data (`usePronunciation.ts`, retired in Round 18).
+- The Pronounce tab is already enabled in `App.tsx`.
 
-- `frontend/src/App.tsx` — enable the "Pronounce" tab and route to `PronunciationTab`.
+## Files to create / modify
+
+(none — manual smoke test only)
 
 ## Steps
 
-1. Implement `useAudioRecorder` per `spec/06-frontend.md` § `useAudioRecorder` hook:
-   ```ts
-   import { useRef, useState, useCallback } from 'react';
-
-   export function useAudioRecorder() {
-     const recorderRef = useRef<MediaRecorder | null>(null);
-     const chunksRef = useRef<Blob[]>([]);
-     const streamRef = useRef<MediaStream | null>(null);
-     const [isRecording, setRecording] = useState(false);
-     const [error, setError] = useState<string | null>(null);
-
-     const start = useCallback(async () => {
-       setError(null);
-       if (!('MediaRecorder' in window)) {
-         setError('Audio recording is not supported in this browser.');
-         throw new Error('Unsupported');
-       }
-       try {
-         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-         streamRef.current = stream;
-         const recorder = new MediaRecorder(stream);
-         chunksRef.current = [];
-         recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-         recorder.start();
-         recorderRef.current = recorder;
-         setRecording(true);
-       } catch (e: unknown) {
-         setError('Microphone permission denied or unavailable.');
-         throw e;
-       }
-     }, []);
-
-     const stop = useCallback(() => {
-       return new Promise<Blob>((resolve, reject) => {
-         const recorder = recorderRef.current;
-         if (!recorder) return reject(new Error('Not recording'));
-         recorder.onstop = () => {
-           const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-           streamRef.current?.getTracks().forEach(t => t.stop());
-           streamRef.current = null;
-           recorderRef.current = null;
-           setRecording(false);
-           resolve(blob);
-         };
-         recorder.stop();
-       });
-     }, []);
-
-     return { isRecording, start, stop, error };
-   }
-   ```
-2. Build `RecordButton`:
-   - Props: `{ onComplete: (blob: Blob) => void; disabled?: boolean }`.
-   - States: `idle | recording | processing`.
-   - Click idle → `start()` → state `recording`. Click recording → `stop()` → state `processing` → call `onComplete(blob)` → state `idle`.
-   - Visible label changes per state: "Record" / "Stop" / "Processing...".
-   - Display `error` inline (red text) when set.
-3. Build `PronunciationTab` (placeholder for this round):
-   - Hardcoded reference text on screen: `你好，今天天气怎么样？`
-   - `<RecordButton onComplete={(b) => console.log('blob size:', b.size)} />`
-   - "Score panel coming in Round 18." note.
-4. Update `App.tsx`:
-   - Enable `pronounce: true` in TabBar.
-   - `{tab === 'pronounce' && <PronunciationTab />}`.
+1. Open the Pronounce tab. Reference sentence `我想买一杯热茶和两个包子。` and Record button should already be visible (per `spec/11-sample-content.md` §11.2).
+2. Click Record → grant the mic permission prompt → button should switch to "Stop".
+3. Open DevTools console; temporarily add a `console.log('blob size:', b.size)` at the call site if you want to eyeball the byte count (`onComplete` receives the `Blob`) — or just trust `RecordButton`'s internal `processing` → `idle` transition, which only fires once a non-empty blob resolves.
+4. Click Stop → confirm the recorder produces a blob (size > 1000 bytes for a few seconds of speech) and the mic indicator in the browser disappears afterward (tracks released).
+5. Deny the permission once (in a fresh context/incognito or by revoking the site permission) → confirm the friendly inline error renders beneath the button with no thrown exceptions.
 
 ## References
 
-- `spec/06-frontend.md` § `useAudioRecorder` hook, `RecordButton`
+- `spec/06-frontend.md` § `useAudioRecorder` hook, `RecordButton`, § Pre-built frontend & the mock seam
 - `spec/10-pitfalls.md` § Mic permission denied
 
 ## Verification
 
 - [ ] Open Pronounce tab → reference sentence visible, Record button shown.
 - [ ] Click Record → browser shows mic permission prompt. Grant → button label changes to "Stop".
-- [ ] Click Stop → DevTools console shows `blob size: <N>` with N > 1000 (a few seconds of audio).
+- [ ] Click Stop → recorder yields a non-empty blob (a few seconds of audio, well over 1 KB); button returns to "Record" once `onComplete` resolves.
 - [ ] Deny permission → friendly error message shown beneath the button; no console exceptions.
 - [ ] After stop, mic indicator in browser disappears (tracks are released).
 

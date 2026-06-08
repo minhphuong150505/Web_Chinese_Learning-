@@ -10,7 +10,7 @@
 1. Verify the user has placed `LLM_API_KEY=sk-...` in `.env`.
 2. Open https://api-docs.deepseek.com/ and confirm:
    - The base URL is still `https://api.deepseek.com`.
-   - The chat model name is still `deepseek-chat` (or note the new name and tell the user to update `LLM_CHAT_MODEL` in `.env`).
+   - The chat model name is still `deepseek-v4-flash` (or note the new name and tell the user to update `LLM_CHAT_MODEL` in `.env`).
 3. If either of these has changed, **stop and report to the user** before writing code.
 
 ## Goal
@@ -27,7 +27,7 @@ A `LlmClient` interface with one `OpenAiCompatibleLlmClient` implementation that
 
 ## Files to modify
 
-(none)
+- `backend/src/main/java/com/chineseapp/ChineseAppApplication.java` — add `@ConfigurationPropertiesScan` so all `@ConfigurationProperties` classes in later rounds bind consistently.
 
 ## Steps
 
@@ -35,7 +35,7 @@ A `LlmClient` interface with one `OpenAiCompatibleLlmClient` implementation that
    - Fields: `provider` (String), `baseUrl` (String), `apiKey` (String), `chatModel` (String), `reasoningModel` (String), `timeoutSeconds` (int, default 60).
    - Provide getters and setters (required by Spring Boot binding when not using records).
    - Annotate the class with `@Validated` and use `@NotBlank` on `baseUrl`, `apiKey`, `chatModel`.
-2. Enable property scanning. Either annotate `LlmProperties` with `@Component`, or add `@ConfigurationPropertiesScan` to `ChineseAppApplication`.
+2. Enable property scanning by adding `@ConfigurationPropertiesScan` to `ChineseAppApplication`. Do not annotate individual properties classes with `@Component`; the scan is the single binding mechanism for `LlmProperties`, `TtsProperties`, `AzureSpeechProperties`, and `AuthProperties`.
 3. Create `WebClientConfig`:
    ```java
    @Configuration

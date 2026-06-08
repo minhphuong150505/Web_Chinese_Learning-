@@ -4,10 +4,10 @@ This directory is the **single source of truth** for the Chinese Learning App.
 
 Read in this order before doing any work:
 
-1. `/home/phuong/Documents/Web_Chinese_Learning/Claude.md` — behavioral rules (NEVER violate).
+1. `../Claude.md` — behavioral rules (NEVER violate).
 2. `00-overview-and-decisions.md` — what we're building and locked-in choices.
-3. `01-tech-stack.md` → `10-pitfalls.md` — design reference.
-4. `rounds/README.md` — execution plan: 21 small rounds, done one at a time.
+3. `01-tech-stack.md` → `11-sample-content.md` — design reference.
+4. `rounds/README.md` — execution plan: 25 small rounds, done one at a time.
 
 ## Topic files
 
@@ -24,18 +24,19 @@ Read in this order before doing any work:
 | [08-docker-and-env.md](./08-docker-and-env.md) | docker-compose.yml and environment variables |
 | [09-coding-standards.md](./09-coding-standards.md) | Project-specific code rules (on top of Claude.md) |
 | [10-pitfalls.md](./10-pitfalls.md) | Known traps and how to avoid them |
+| [11-sample-content.md](./11-sample-content.md) | Cohesive HSK 2–3 sample sentences for Chat/Pronounce/Translate/Write (validated in the design prototype) |
 
 ## Rounds
 
-See [rounds/README.md](./rounds/README.md) for the 21-round execution plan and current status.
+See [rounds/README.md](./rounds/README.md) for the 25-round execution plan, required execution order, and current status.
 
 ## How to use this spec with another model
 
 1. Read `Claude.md`, then this `README.md`, then the topic files in order.
 2. Open `rounds/README.md` and find the first unchecked round.
 3. Open that round file, follow its steps, check off its verification items.
-4. Update `rounds/README.md` status, report to the user, stop.
-5. Never start the next round without user approval.
+4. Update `rounds/README.md` status and `rounds/CHECKPOINT.md`.
+5. Continue automatically to the next unchecked round unless a stop-and-ask trigger or blocking prerequisite applies.
 
 ## Authority
 

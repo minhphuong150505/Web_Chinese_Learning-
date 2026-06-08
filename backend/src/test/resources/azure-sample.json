@@ -1,0 +1,58 @@
+{
+  "Id": "sample-id",
+  "RecognitionStatus": "Success",
+  "DisplayText": "你好世界",
+  "Offset": 500000,
+  "Duration": 12000000,
+  "NBest": [
+    {
+      "Confidence": 0.93,
+      "Lexical": "你好世界",
+      "ITN": "你好世界",
+      "MaskedITN": "你好世界",
+      "Display": "你好世界",
+      "PronunciationAssessment": {
+        "AccuracyScore": 90.0,
+        "FluencyScore": 88.0,
+        "CompletenessScore": 100.0,
+        "PronScore": 89.5
+      },
+      "Words": [
+        {
+          "Word": "你好",
+          "Offset": 500000,
+          "Duration": 6000000,
+          "PronunciationAssessment": {
+            "AccuracyScore": 92.5,
+            "ErrorType": "None"
+          },
+          "Syllables": [
+            { "Syllable": "ni3", "PronunciationAssessment": { "AccuracyScore": 95.0 } },
+            { "Syllable": "hao3", "PronunciationAssessment": { "AccuracyScore": 90.0 } }
+          ],
+          "Phonemes": [
+            { "Phoneme": "n", "PronunciationAssessment": { "AccuracyScore": 96.0 } },
+            { "Phoneme": "i_3", "PronunciationAssessment": { "AccuracyScore": 94.0 } }
+          ]
+        },
+        {
+          "Word": "世界",
+          "Offset": 6600000,
+          "Duration": 5400000,
+          "PronunciationAssessment": {
+            "AccuracyScore": 85.0,
+            "ErrorType": "None"
+          },
+          "Syllables": [
+            { "Syllable": "shi4", "PronunciationAssessment": { "AccuracyScore": 84.0 } },
+            { "Syllable": "jie4", "PronunciationAssessment": { "AccuracyScore": 86.0 } }
+          ],
+          "Phonemes": [
+            { "Phoneme": "sh", "PronunciationAssessment": { "AccuracyScore": 83.0 } },
+            { "Phoneme": "ir_4", "PronunciationAssessment": { "AccuracyScore": 85.0 } }
+          ]
+        }
+      ]
+    }
+  ]
+}

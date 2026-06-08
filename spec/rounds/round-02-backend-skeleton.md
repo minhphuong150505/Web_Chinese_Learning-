@@ -64,7 +64,7 @@ A runnable Spring Boot app that serves `GET /api/health` returning `{"status":"U
        }
    }
    ```
-5. Copy the full `application.yml` from `spec/05-backend.md`. **Important:** with no Postgres yet, JPA auto-config will fail at boot. To allow the skeleton to run without a DB, add these two lines under `spring:`:
+5. Copy the full `application.yml` from `spec/05-backend.md`. **Note:** that file already contains the `app.llm`, `app.tts`, `app.azure-speech`, and `app.auth` blocks. They are inert placeholders here — nothing binds them until their `@ConfigurationProperties` class is created in a later round (`app.llm` in Round 7, `app.tts` in Round 11, `app.azure-speech` in Round 16, `app.auth` in Round 22) — so copying them now is fine and Round 22 does **not** re-add the auth block. **Important:** with no Postgres yet, JPA auto-config will fail at boot. To allow the skeleton to run without a DB, add these two lines under `spring:`:
    ```yaml
    autoconfigure:
      exclude:

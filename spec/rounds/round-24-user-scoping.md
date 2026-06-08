@@ -17,9 +17,9 @@ Make the owned data per-user. Add `user_id` to `conversations` and `pronunciatio
 
 - `entity/Conversation.java`, `entity/PronunciationScore.java` — add a `userId` (`UUID`) column (`@Column(name = "user_id")`). Set via constructor on creation.
 - `repository/ConversationRepository.java` — add `Optional<Conversation> findByIdAndUserId(UUID id, UUID userId)` and `List<Conversation> findByUserIdOrderByUpdatedAtDesc(UUID userId)`.
-- `repository/PronunciationScoreRepository.java` — add `findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable)` (or `limit`).
+- `repository/PronunciationScoreRepository.java` — add `findTop20ByUserIdOrderByCreatedAtDesc(UUID userId)` (the user-scoped replacement for Round 17's `findTop20ByOrderByCreatedAtDesc`).
 - `service/ConversationService.java` + `service/impl/ConversationServiceImpl.java` — add leading `UUID userId` param to every method; scope all queries by it per `spec/05-backend.md` § Service template.
-- `service/PronunciationService.java` + `service/impl/PronunciationServiceImpl.java` — `assess(UUID userId, ...)` sets `userId` on the saved score; `history(UUID userId, int limit)` filters by user.
+- `service/PronunciationService.java` + `service/impl/PronunciationServiceImpl.java` — `assess(UUID userId, ...)` sets `userId` on the saved score; rename `historyTop20()` → `historyTop20(UUID userId)` so it filters by user (no `limit` param — the endpoint returns the caller's latest 20).
 - `controller/ConversationController.java`, `controller/PronunciationController.java` — add `@AuthenticationPrincipal CurrentUser user` and pass `user.id()` into the service.
 - `controller/TranslationController.java`, `controller/WritingController.java` — add `@AuthenticationPrincipal CurrentUser user` so the route requires auth, even though the user id isn't used downstream.
 - Existing service tests (`ConversationServiceImplTest`, `PronunciationServiceImplTest`) — pass a test `userId`; add a cross-user isolation test (a conversation owned by user A is a 404 for user B).

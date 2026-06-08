@@ -26,6 +26,7 @@ Backend can call `tts-service`, save the returned MP3 to disk under `AUDIO_STORA
 1. Create `TtsProperties` `@ConfigurationProperties("app.tts")`:
    - Fields: `baseUrl` (String), `voice` (String), `storageDir` (String).
    - `@NotBlank` on each.
+   - Do not add `@Component`; `@ConfigurationPropertiesScan` was enabled in Round 7.
 2. Create `EdgeTtsClient`:
    ```java
    @Component
@@ -62,7 +63,7 @@ Backend can call `tts-service`, save the returned MP3 to disk under `AUDIO_STORA
          Files.createDirectories(Path.of(props.getStorageDir()));
      }
      ```
-4. Write `TtsServiceTest`:
+4. Write `TtsServiceImplTest`:
    - Mock `EdgeTtsClient` to return fixed bytes.
    - Use a temp directory (`@TempDir`) as `storageDir`.
    - Assert file is created and filename returned matches `^[a-f0-9-]+\.mp3$`.

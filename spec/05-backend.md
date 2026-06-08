@@ -328,7 +328,7 @@ Controller tests then annotate methods with `@WithMockCurrentUser` (and `@WebMvc
 | 🔒 | `POST` | `/api/conversations/{id}/messages` | `{ content: string }` | `ChatResponse` | 9 (text), 13 (+audio) |
 | 🔓† | `GET`  | `/api/audio/{filename}` | — | binary `audio/mpeg` | 12 |
 | 🔒 | `POST` | `/api/pronunciation/assess` | multipart: `audio` + `referenceText` | `PronunciationResponse` | 18 |
-| 🔒 | `GET`  | `/api/pronunciation/history` | `?limit=20` | `[PronunciationResponse]` (caller's only) | 18 |
+| 🔒 | `GET`  | `/api/pronunciation/history` | — (returns the caller's latest 20) | `[PronunciationResponse]` (caller's only) | 18 |
 | 🔒 | `POST` | `/api/translation` | `{ text, direction: "VI_TO_ZH"|"ZH_TO_VI" }` | `TranslationResponse` | 19 |
 | 🔒 | `POST` | `/api/writing/feedback` | `{ text, topic? }` | `WritingFeedbackResponse` | 20 |
 
@@ -363,8 +363,8 @@ app:
     provider: ${LLM_PROVIDER:deepseek}
     base-url: ${LLM_BASE_URL:https://api.deepseek.com}
     api-key:  ${LLM_API_KEY:}
-    chat-model:      ${LLM_CHAT_MODEL:deepseek-chat}
-    reasoning-model: ${LLM_REASONING_MODEL:deepseek-reasoner}
+    chat-model:      ${LLM_CHAT_MODEL:deepseek-v4-flash}
+    reasoning-model: ${LLM_REASONING_MODEL:deepseek-v4-pro}
     timeout-seconds: ${LLM_TIMEOUT_SECONDS:60}
   tts:
     base-url: ${TTS_BASE_URL:http://tts-service:8001}
@@ -387,4 +387,4 @@ logging:
     org.springframework.web: INFO
 ```
 
-**Model name note:** the original prompt states `deepseek-chat` and `deepseek-reasoner` will be deprecated 2026-07-24. Implementer MUST verify at https://api-docs.deepseek.com/ when starting Round 7 and update `.env` defaults if needed. The code reads from env, so no source change is required.
+**Model name note:** the original prompt states `deepseek-chat` and `deepseek-reasoner` will be deprecated 2026-07-24. Defaults use `deepseek-v4-flash` / `deepseek-v4-pro`, but the implementer MUST verify current model names at https://api-docs.deepseek.com/ when starting Round 7 and stop if they differ.

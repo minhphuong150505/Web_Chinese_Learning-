@@ -11,7 +11,7 @@
 
 ```json
 {
-  "model": "deepseek-chat",
+  "model": "deepseek-v4-flash",
   "messages": [
     { "role": "system", "content": "..." },
     { "role": "user", "content": "..." }
@@ -89,6 +89,7 @@ PronunciationAssessmentConfig assess = new PronunciationAssessmentConfig(
     PronunciationAssessmentGradingSystem.HundredMark,
     PronunciationAssessmentGranularity.Phoneme,
     /* enableMiscue */ true);
+assess.enableProsodyAssessment();   // REQUIRED for the prosody score; omitting it returns 0
 assess.applyTo(recognizer);
 
 SpeechRecognitionResult result = recognizer.recognizeOnceAsync().get(30, TimeUnit.SECONDS);
