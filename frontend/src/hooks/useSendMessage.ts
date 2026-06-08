@@ -2,7 +2,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
 import type { ChatResponse, MessageDto } from '../types/chat';
 
-export function useSendMessage(conversationId: string | undefined) {
+interface UseSendMessageOptions {
+  onAssistantMessage?: (message: MessageDto) => void;
+}
+
+export function useSendMessage(conversationId: string | undefined, options: UseSendMessageOptions = {}) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -16,6 +20,7 @@ export function useSendMessage(conversationId: string | undefined) {
         data.userMessage,
         data.assistantMessage,
       ]);
+      options.onAssistantMessage?.(data.assistantMessage);
     },
   });
 }

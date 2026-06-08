@@ -9,5 +9,7 @@ import java.util.UUID;
 public interface PronunciationService {
     PronunciationResponse assess(UUID userId, MultipartFile audio, String referenceText);
 
+    PronunciationResponse assessUnscripted(UUID userId, MultipartFile audio);
+
     List<PronunciationResponse> historyTop20(UUID userId);
 }

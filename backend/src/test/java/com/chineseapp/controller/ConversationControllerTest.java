@@ -1,6 +1,9 @@
 package com.chineseapp.controller;
 
 import com.chineseapp.config.SecurityConfig;
+import com.chineseapp.dto.chat.MessageDto;
+import com.chineseapp.dto.chat.VoiceTurnResponse;
+import com.chineseapp.dto.pronunciation.PronunciationResponse;
 import com.chineseapp.exception.ApiException;
 import com.chineseapp.exception.GlobalExceptionHandler;
 import com.chineseapp.repository.UserRepository;
@@ -15,14 +18,19 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -71,5 +79,50 @@ class ConversationControllerTest {
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.error").value("NOT_FOUND"))
             .andExpect(jsonPath("$.message").value("Conversation not found"));
+    }
+
+    @Test
+    @WithMockCurrentUser
+    void voiceTurn_givenEmptyAudio_thenReturnsBadRequest() throws Exception {
+        UUID conversationId = UUID.randomUUID();
+        MockMultipartFile audio = new MockMultipartFile(
+            "audio", "voice-turn.webm", "audio/webm", new byte[0]
+        );
+
+        mockMvc.perform(multipart("/api/conversations/{id}/voice-turn", conversationId).file(audio))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Empty audio"));
+    }
+
+    @Test
+    @WithMockCurrentUser
+    void voiceTurn_givenAudio_thenReturnsAssessmentAndReply() throws Exception {
+        UUID conversationId = UUID.randomUUID();
+        UUID mockUserId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        Instant now = Instant.parse("2026-01-01T00:00:00Z");
+        VoiceTurnResponse response = new VoiceTurnResponse(
+            new MessageDto(UUID.randomUUID(), "user", "我要一杯茶。", null, now),
+            new MessageDto(UUID.randomUUID(), "assistant", "好的，您要热茶吗？", "/api/audio/reply.mp3", now),
+            new PronunciationResponse(
+                UUID.randomUUID(), "我要一杯茶。", "我要一杯茶。",
+                90, 88, 0, null, 89, List.of(), now
+            ),
+            95,
+            92,
+            "Đúng ngữ cảnh.",
+            ""
+        );
+        when(service.sendVoiceTurn(eq(mockUserId), eq(conversationId), any())).thenReturn(response);
+        MockMultipartFile audio = new MockMultipartFile(
+            "audio", "voice-turn.webm", "audio/webm", new byte[]{1, 2, 3}
+        );
+
+        mockMvc.perform(multipart("/api/conversations/{id}/voice-turn", conversationId).file(audio))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.userMessage.content").value("我要一杯茶。"))
+            .andExpect(jsonPath("$.assistantMessage.content").value("好的，您要热茶吗？"))
+            .andExpect(jsonPath("$.pronunciation.pronScore").value(89))
+            .andExpect(jsonPath("$.contextScore").value(95))
+            .andExpect(jsonPath("$.grammarScore").value(92));
     }
 }

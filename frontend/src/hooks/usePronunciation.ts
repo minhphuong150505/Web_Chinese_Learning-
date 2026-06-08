@@ -9,9 +9,7 @@ export function useAssessPronunciation() {
       const fd = new FormData();
       fd.append('audio', blob, 'recording.webm');
       fd.append('referenceText', referenceText);
-      const r = await apiClient.post<PronunciationResponse>('/pronunciation/assess', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const r = await apiClient.post<PronunciationResponse>('/pronunciation/assess', fd);
       return r.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pronunciation', 'history'] }),

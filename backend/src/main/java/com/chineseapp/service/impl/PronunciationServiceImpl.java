@@ -46,6 +46,18 @@ public class PronunciationServiceImpl implements PronunciationService {
 
     @Override
     public PronunciationResponse assess(UUID userId, MultipartFile audio, String referenceText) {
+        return assessInternal(userId, audio, referenceText, false);
+    }
+
+    @Override
+    public PronunciationResponse assessUnscripted(UUID userId, MultipartFile audio) {
+        return assessInternal(userId, audio, "", true);
+    }
+
+    private PronunciationResponse assessInternal(UUID userId,
+                                                  MultipartFile audio,
+                                                  String referenceText,
+                                                  boolean unscripted) {
         File webm = null;
         File wav = null;
         try {
@@ -53,13 +65,16 @@ public class PronunciationServiceImpl implements PronunciationService {
             audio.transferTo(webm);
             wav = audioConv.toWav16kMono(webm);
 
-            AssessmentRawResult raw = azure.assess(wav, referenceText);
+            AssessmentRawResult raw = unscripted
+                ? azure.assessUnscripted(wav)
+                : azure.assess(wav, referenceText);
             List<WordScore> words = parseWordScores(raw.detailedJson());
+            String storedReferenceText = unscripted ? raw.recognizedText() : referenceText;
 
             PronunciationScore score = new PronunciationScore(
                 UUID.randomUUID(),
                 userId,
-                referenceText,
+                storedReferenceText,
                 raw.recognizedText(),
                 toScale2(raw.accuracy()),
                 toScale2(raw.fluency()),

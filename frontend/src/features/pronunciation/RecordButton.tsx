@@ -50,7 +50,7 @@ export default function RecordButton({ onComplete, disabled }: RecordButtonProps
         disabled={disabled || state === 'processing'}
         className={
           'relative grid h-20 w-20 place-items-center rounded-full text-white shadow-accent transition disabled:cursor-progress ' +
-          (state === 'recording' ? 'bg-red-500' : 'bg-indigo-600 hover:bg-indigo-700')
+          (state === 'recording' ? 'bg-red-500' : 'bg-violet-600 hover:bg-violet-700')
         }
       >
         {state === 'processing' ? (

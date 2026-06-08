@@ -39,7 +39,7 @@ export default function LoginScreen() {
         }}
       />
       <div className="w-full max-w-[430px] animate-pop rounded-[26px] border border-slate-200 bg-white px-9 pb-7 pt-10 text-center shadow-2xl">
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-indigo-600 text-white shadow-accent">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-violet-600 text-white shadow-accent">
           <Icon name="chat" size={26} />
         </div>
         <div className="mt-4 text-3xl">
@@ -54,7 +54,7 @@ export default function LoginScreen() {
         <form className="space-y-3 text-left" onSubmit={handleMockSubmit} aria-busy={mockLogin.isPending}>
           <label className="block">
             <span className="sr-only">Email</span>
-            <div className="flex h-12 items-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 text-slate-500 shadow-sm transition focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-100">
+            <div className="flex h-12 items-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 text-slate-500 shadow-sm transition focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-100">
               <Icon name="user" size={18} />
               <input
                 className="h-full min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-700 outline-none placeholder:text-slate-400"
@@ -70,7 +70,7 @@ export default function LoginScreen() {
 
           <label className="block">
             <span className="sr-only">Password</span>
-            <div className="flex h-12 items-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 text-slate-500 shadow-sm transition focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-100">
+            <div className="flex h-12 items-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 text-slate-500 shadow-sm transition focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-100">
               <Icon name="lock" size={18} />
               <input
                 className="h-full min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-700 outline-none placeholder:text-slate-400"

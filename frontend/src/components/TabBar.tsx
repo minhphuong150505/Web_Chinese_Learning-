@@ -23,8 +23,8 @@ interface TabBarProps {
 
 export default function TabBar({ active, onChange, enabled }: TabBarProps) {
   return (
-    <nav className="flex-none border-b border-slate-200 bg-white px-7" style={{ zIndex: 15 }}>
-      <div className="mx-auto flex max-w-[1180px] gap-1">
+    <nav className="scroll flex-none overflow-x-auto border-b border-slate-200 bg-white px-3 sm:px-7" style={{ zIndex: 15 }}>
+      <div className="mx-auto flex w-max min-w-full max-w-[1180px] gap-1">
         {TABS.map((tab) =>
           enabled[tab.id] ? (
             <button
@@ -34,7 +34,7 @@ export default function TabBar({ active, onChange, enabled }: TabBarProps) {
               className={
                 '-mb-px inline-flex items-center gap-2 border-b-[2.5px] px-[18px] pb-4 pt-3.5 text-[14.5px] font-semibold transition-colors ' +
                 (active === tab.id
-                  ? 'border-indigo-600 text-indigo-600'
+                  ? 'border-violet-600 text-violet-600'
                   : 'border-transparent text-slate-500 hover:text-slate-900')
               }
             >

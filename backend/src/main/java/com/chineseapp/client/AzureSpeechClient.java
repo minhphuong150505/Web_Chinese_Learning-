@@ -28,6 +28,14 @@ public class AzureSpeechClient {
     }
 
     public AssessmentRawResult assess(File wav, String referenceText) {
+        return assess(wav, referenceText, true);
+    }
+
+    public AssessmentRawResult assessUnscripted(File wav) {
+        return assess(wav, "", false);
+    }
+
+    private AssessmentRawResult assess(File wav, String referenceText, boolean enableMiscue) {
         if (!StringUtils.hasText(props.getKey()) || !StringUtils.hasText(props.getRegion())) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "Azure Speech is not configured");
         }
@@ -39,7 +47,7 @@ public class AzureSpeechClient {
                  referenceText,
                  PronunciationAssessmentGradingSystem.HundredMark,
                  PronunciationAssessmentGranularity.Phoneme,
-                 true)) {
+                 enableMiscue)) {
 
             assessmentConfig.enableProsodyAssessment();
             assessmentConfig.applyTo(recognizer);
@@ -60,6 +68,8 @@ public class AzureSpeechClient {
             );
         } catch (TimeoutException ex) {
             throw new ApiException(HttpStatus.GATEWAY_TIMEOUT, "Azure Speech timed out");
+        } catch (LinkageError ex) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "Azure Speech native SDK failed to initialize: " + ex.getMessage());
         } catch (Exception ex) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "Azure Speech failed: " + ex.getMessage());
         }

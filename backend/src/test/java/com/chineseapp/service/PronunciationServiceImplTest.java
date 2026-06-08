@@ -67,6 +67,35 @@ class PronunciationServiceImplTest {
         }
     }
 
+    @Test
+    void assessUnscripted_usesRecognizedTextAsStoredReference() throws IOException {
+        AudioConversionService audioConv = mock(AudioConversionService.class);
+        AzureSpeechClient azure = mock(AzureSpeechClient.class);
+        PronunciationScoreRepository repo = mock(PronunciationScoreRepository.class);
+        PronunciationService service = new PronunciationServiceImpl(
+            audioConv, azure, repo, new ObjectMapper()
+        );
+        File wav = File.createTempFile("test-unscripted-", ".wav");
+        try {
+            when(audioConv.toWav16kMono(any(File.class))).thenReturn(wav);
+            when(azure.assessUnscripted(wav)).thenReturn(new AssessmentRawResult(
+                "我要一杯茶。", 91, 87, 0, null, 89, readSampleJson()
+            ));
+            when(repo.save(any(PronunciationScore.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            MockMultipartFile audio = new MockMultipartFile(
+                "audio", "voice-turn.webm", "audio/webm", new byte[]{1, 2, 3}
+            );
+
+            PronunciationResponse response = service.assessUnscripted(UUID.randomUUID(), audio);
+
+            assertThat(response.referenceText()).isEqualTo("我要一杯茶。");
+            assertThat(response.recognizedText()).isEqualTo("我要一杯茶。");
+            verify(azure).assessUnscripted(wav);
+        } finally {
+            Files.deleteIfExists(wav.toPath());
+        }
+    }
+
     private String readSampleJson() throws IOException {
         try (InputStream in = getClass().getClassLoader().getResourceAsStream("azure-sample.json")) {
             assertThat(in).isNotNull();

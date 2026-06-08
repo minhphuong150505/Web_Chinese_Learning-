@@ -30,7 +30,7 @@ export default {
         },
       },
       boxShadow: {
-        accent: '0 10px 24px -10px rgba(79, 70, 229, 0.35)',
+        accent: '0 10px 24px -10px rgba(124, 58, 237, 0.42)',
       },
       keyframes: {
         riseIn: { from: { opacity: 0, transform: 'translateY(8px)' }, to: { opacity: 1, transform: 'none' } },

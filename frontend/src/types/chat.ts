@@ -1,3 +1,5 @@
+import type { PronunciationResponse } from './pronunciation';
+
 export type Role = 'user' | 'assistant' | 'system';
 
 export interface MessageDto {
@@ -18,4 +20,12 @@ export interface ConversationDto {
 export interface ChatResponse {
   userMessage: MessageDto;
   assistantMessage: MessageDto;
+}
+
+export interface VoiceTurnResponse extends ChatResponse {
+  pronunciation: PronunciationResponse;
+  contextScore: number;
+  grammarScore: number;
+  feedback: string;
+  suggestedReply: string;
 }

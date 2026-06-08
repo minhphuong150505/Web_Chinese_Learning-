@@ -37,7 +37,7 @@ export default function TranslationForm() {
                 onClick={() => setDirection(d.id)}
                 className={
                   'rounded-lg px-3 py-1.5 text-[13px] font-semibold transition ' +
-                  (direction === d.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900')
+                  (direction === d.id ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-500 hover:text-slate-900')
                 }
               >
                 {d.label}
@@ -58,13 +58,13 @@ export default function TranslationForm() {
           onChange={(e) => setText(e.target.value)}
           placeholder={direction === 'VI_TO_ZH' ? 'Type in Vietnamese…' : 'Type in Chinese…'}
           rows={8}
-          className="scroll min-h-[180px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] text-slate-900 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+          className="scroll min-h-[180px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
         />
         <button
           type="button"
           onClick={submit}
           disabled={translate.isPending || !text.trim()}
-          className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-indigo-600 px-5 py-2.5 text-[14px] font-semibold text-white shadow-accent transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-violet-600 px-5 py-2.5 text-[14px] font-semibold text-white shadow-accent transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {translate.isPending && <Spinner size={16} />}
           {translate.isPending ? 'Translating…' : 'Translate'}
