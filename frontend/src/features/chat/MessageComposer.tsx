@@ -36,10 +36,9 @@ export default function MessageComposer({ onSend, pending, suggestions }: Messag
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      submit();
-    }
+    if (e.key !== 'Enter' || e.altKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    submit();
   }
 
   function toggleVoiceInput() {
@@ -100,7 +99,7 @@ export default function MessageComposer({ onSend, pending, suggestions }: Messag
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Type in Chinese…  (⌘/Ctrl + Enter to send)"
+            placeholder="Type in Chinese... Enter to send, Alt + Enter for a new line"
             className="scroll min-h-[44px] flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
           />
           <button
