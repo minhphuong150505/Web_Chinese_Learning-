@@ -5,10 +5,21 @@ import type { PronunciationResponse } from '../types/pronunciation';
 export function useAssessPronunciation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ blob, referenceText }: { blob: Blob; referenceText: string }) => {
+    mutationFn: async ({
+      blob,
+      referenceText,
+      audioConsent = false,
+    }: {
+      blob: Blob;
+      referenceText: string;
+      audioConsent?: boolean;
+    }) => {
       const fd = new FormData();
       fd.append('audio', blob, 'recording.webm');
       fd.append('referenceText', referenceText);
+      // Round 26 Phase 0: only sent true when the learner opted in to contribute
+      // their recording to the tone-grading dataset.
+      fd.append('audioConsent', String(audioConsent));
       const r = await apiClient.post<PronunciationResponse>('/pronunciation/assess', fd);
       return r.data;
     },

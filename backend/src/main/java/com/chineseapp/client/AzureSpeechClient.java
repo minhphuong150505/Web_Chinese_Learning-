@@ -7,6 +7,7 @@ import com.microsoft.cognitiveservices.speech.PronunciationAssessmentGranularity
 import com.microsoft.cognitiveservices.speech.PronunciationAssessmentGradingSystem;
 import com.microsoft.cognitiveservices.speech.PronunciationAssessmentResult;
 import com.microsoft.cognitiveservices.speech.PropertyId;
+import com.microsoft.cognitiveservices.speech.ResultReason;
 import com.microsoft.cognitiveservices.speech.SpeechConfig;
 import com.microsoft.cognitiveservices.speech.SpeechRecognitionResult;
 import com.microsoft.cognitiveservices.speech.SpeechRecognizer;
@@ -53,6 +54,16 @@ public class AzureSpeechClient {
             assessmentConfig.applyTo(recognizer);
 
             SpeechRecognitionResult result = recognizer.recognizeOnceAsync().get(30, TimeUnit.SECONDS);
+
+            // Silence, noise, or non-speech: Azure reports NoMatch and
+            // PronunciationAssessmentResult.fromResult would fail on it. Surface a
+            // friendly, actionable message instead of a generic gateway error.
+            if (result.getReason() != ResultReason.RecognizedSpeech
+                || !StringUtils.hasText(result.getText())) {
+                throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Không nhận được giọng nói. Hãy ghi âm lại ở nơi yên tĩnh và nói rõ ràng.");
+            }
+
             PronunciationAssessmentResult assessmentResult = PronunciationAssessmentResult.fromResult(result);
             String detailedJson = result.getProperties()
                 .getProperty(PropertyId.SpeechServiceResponse_JsonResult);
@@ -66,6 +77,8 @@ public class AzureSpeechClient {
                 assessmentResult.getPronunciationScore(),
                 detailedJson
             );
+        } catch (ApiException ex) {
+            throw ex;
         } catch (TimeoutException ex) {
             throw new ApiException(HttpStatus.GATEWAY_TIMEOUT, "Azure Speech timed out");
         } catch (LinkageError ex) {

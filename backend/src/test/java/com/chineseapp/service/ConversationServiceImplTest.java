@@ -193,9 +193,10 @@ class ConversationServiceImplTest {
             "我想喝一杯咖啡。",
             91,
             86,
-            0,
+            null,
             null,
             89,
+            false,
             List.of(),
             Instant.parse("2026-01-01T00:00:00Z")
         );

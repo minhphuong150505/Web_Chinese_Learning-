@@ -1,0 +1,3 @@
+# Never commit learner voice recordings or regenerable fixtures.
+tone-corpus/
+tone-synth/

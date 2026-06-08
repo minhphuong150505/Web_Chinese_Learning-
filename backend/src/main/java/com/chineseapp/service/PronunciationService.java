@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface PronunciationService {
-    PronunciationResponse assess(UUID userId, MultipartFile audio, String referenceText);
+    PronunciationResponse assess(UUID userId, MultipartFile audio, String referenceText, boolean audioConsent);
 
     PronunciationResponse assessUnscripted(UUID userId, MultipartFile audio);
 

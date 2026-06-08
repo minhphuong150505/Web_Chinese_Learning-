@@ -33,11 +33,11 @@ function relativeTime(iso: string): string {
 function HistoryRow({ entry }: { entry: PronunciationResponse }) {
   const avg = entry.pronScore;
   const metrics: Array<[string, number]> = [
-    ['Acc', entry.accuracy],
-    ['Flu', entry.fluency],
-    ['Comp', entry.completeness],
-    ['Pros', entry.prosody ?? 0],
+    ['Chính xác', entry.accuracy],
+    ['Trôi chảy', entry.fluency],
   ];
+  if (entry.completeness !== null) metrics.push(['Đầy đủ', entry.completeness]);
+  if (entry.prosody !== null) metrics.push(['Ngữ điệu', entry.prosody]);
   return (
     <div className="flex items-center gap-4 border-t border-slate-100 py-3 first:border-t-0">
       <div className={'grid h-10 w-10 flex-none place-items-center rounded-full text-[15px] font-extrabold ' + BAND_TEXT[band(avg)]}>
@@ -55,17 +55,27 @@ function HistoryRow({ entry }: { entry: PronunciationResponse }) {
   );
 }
 
+const CONSENT_KEY = 'pron_audio_consent';
+
 export default function PronunciationTab() {
   const [lastBlob, setLastBlob] = useState<Blob | null>(null);
   const [result, setResult] = useState<PronunciationResponse | null>(null);
+  // Opt-in to donating the recording for tone-grading research (Round 26 Phase 0).
+  // Off unless the learner previously turned it on.
+  const [consent, setConsent] = useState(() => localStorage.getItem(CONSENT_KEY) === '1');
   const assess = useAssessPronunciation();
   const history = usePronunciationHistory();
+
+  function toggleConsent(next: boolean) {
+    setConsent(next);
+    localStorage.setItem(CONSENT_KEY, next ? '1' : '0');
+  }
 
   function submit() {
     if (!lastBlob) return;
     setResult(null);
     assess.mutate(
-      { blob: lastBlob, referenceText: REFERENCE },
+      { blob: lastBlob, referenceText: REFERENCE, audioConsent: consent },
       { onSuccess: (data) => setResult(data) },
     );
   }
@@ -75,11 +85,15 @@ export default function PronunciationTab() {
       <div className="mx-auto max-w-[880px] px-7 pb-20 pt-[30px]">
         <div className="mb-6">
           <div className="text-xs font-semibold uppercase tracking-wide text-violet-500">
-            Pronunciation scoring
+            Chấm điểm phát âm
           </div>
           <h2 className="mt-1 text-[26px] font-extrabold tracking-tight text-slate-900">
-            Read this aloud <span className="font-zh text-[22px] font-semibold text-slate-400">朗读</span>
+            Đọc to câu này <span className="font-zh text-[22px] font-semibold text-slate-400">朗读</span>
           </h2>
+          <p className="mt-1.5 text-[13.5px] text-slate-500">
+            Bấm micro, đọc rõ từng chữ. Màu chữ là thanh điệu cần đọc — sau khi chấm,
+            bạn sẽ thấy điểm từng âm tiết và lỗi thanh điệu cần sửa.
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center">
@@ -109,14 +123,27 @@ export default function PronunciationTab() {
               className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-5 py-2.5 text-[14px] font-semibold text-white shadow-accent transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {assess.isPending && <Spinner size={16} />}
-              {assess.isPending ? 'Scoring…' : 'Submit recording'}
+              {assess.isPending ? 'Đang chấm…' : 'Gửi bản ghi'}
             </button>
           )}
           {lastBlob?.size === 0 && (
             <p className="text-[13px] font-medium text-red-600">
-              The recording was empty. Please record again.
+              Bản ghi rỗng. Vui lòng ghi âm lại.
             </p>
           )}
+          <label className="flex max-w-[560px] cursor-pointer items-start gap-2.5 text-left text-[12.5px] text-slate-500">
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(e) => toggleConsent(e.target.checked)}
+              className="mt-0.5 h-4 w-4 flex-none accent-violet-600"
+            />
+            <span>
+              Cho phép lưu bản ghi này để cải thiện chấm điểm thanh điệu. Bản ghi
+              được giữ riêng tư, dùng cho nghiên cứu và tự động xoá sau một thời gian.
+              Bạn có thể bỏ chọn bất cứ lúc nào.
+            </span>
+          </label>
           {assess.isError && (
             <p className="max-w-[620px] text-center text-[13px] font-medium text-red-600">
               {assess.error.message}
@@ -128,11 +155,11 @@ export default function PronunciationTab() {
 
         <div className="mt-9">
           <div className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Recent attempts
+            Lần thử gần đây
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-5">
-            {history.isLoading && <p className="py-4 text-sm text-slate-400">Loading…</p>}
-            {history.data?.length === 0 && <p className="py-4 text-sm text-slate-400">No attempts yet.</p>}
+            {history.isLoading && <p className="py-4 text-sm text-slate-400">Đang tải…</p>}
+            {history.data?.length === 0 && <p className="py-4 text-sm text-slate-400">Chưa có lần thử nào.</p>}
             {history.data?.map((entry) => <HistoryRow key={entry.id} entry={entry} />)}
           </div>
         </div>

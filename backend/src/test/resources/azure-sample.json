@@ -27,8 +27,8 @@
             "ErrorType": "None"
           },
           "Syllables": [
-            { "Syllable": "ni3", "PronunciationAssessment": { "AccuracyScore": 95.0 } },
-            { "Syllable": "hao3", "PronunciationAssessment": { "AccuracyScore": 90.0 } }
+            { "Syllable": "ni3", "Offset": 500000, "Duration": 3000000, "PronunciationAssessment": { "AccuracyScore": 95.0 } },
+            { "Syllable": "hao3", "Offset": 3500000, "Duration": 3000000, "PronunciationAssessment": { "AccuracyScore": 90.0 } }
           ],
           "Phonemes": [
             { "Phoneme": "n", "PronunciationAssessment": { "AccuracyScore": 96.0 } },
@@ -44,8 +44,8 @@
             "ErrorType": "None"
           },
           "Syllables": [
-            { "Syllable": "shi4", "PronunciationAssessment": { "AccuracyScore": 84.0 } },
-            { "Syllable": "jie4", "PronunciationAssessment": { "AccuracyScore": 86.0 } }
+            { "Syllable": "shi4", "Offset": 6600000, "Duration": 2700000, "PronunciationAssessment": { "AccuracyScore": 84.0 } },
+            { "Syllable": "jie4", "Offset": 9300000, "Duration": 2700000, "PronunciationAssessment": { "AccuracyScore": 86.0 } }
           ],
           "Phonemes": [
             { "Phoneme": "sh", "PronunciationAssessment": { "AccuracyScore": 83.0 } },

@@ -5,6 +5,7 @@ import Spinner from '../../components/Spinner';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 import { useVoiceTurn } from '../../hooks/useVoiceTurn';
 import { toZhTokens } from '../../lib/zh';
+import SyllableBreakdown, { toneTips } from '../pronunciation/SyllableBreakdown';
 import type { MessageDto, VoiceTurnResponse } from '../../types/chat';
 
 type VoicePhase = 'ready' | 'listening' | 'processing' | 'speaking';
@@ -53,6 +54,7 @@ function TurnAssessment({ turn }: { turn: VoiceTurnResponse }) {
     words.length > 0
       ? words.reduce((sum, word) => sum + word.accuracyScore, 0) / words.length
       : turn.pronunciation.accuracy;
+  const tips = toneTips(words);
 
   return (
     <aside className="scroll w-full flex-none overflow-visible border-t border-slate-200 bg-slate-50/80 px-5 pb-20 pt-5 lg:h-full lg:w-[390px] lg:overflow-y-auto lg:border-l lg:border-t-0 lg:px-6 lg:py-5">
@@ -92,20 +94,23 @@ function TurnAssessment({ turn }: { turn: VoiceTurnResponse }) {
 
       {words.length > 0 && (
         <div className="mt-5 border-t border-slate-200 pt-4">
-          <div className="text-[11px] font-bold uppercase text-slate-400">Từng từ</div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {words.map((word, index) => (
-              <div
-                key={`${word.word}-${index}`}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center"
-              >
-                <div className="font-zh text-[17px] font-semibold text-slate-900">{word.word}</div>
-                <div className={'mt-0.5 text-[11px] font-extrabold ' + scoreBand(word.accuracyScore)}>
-                  {Math.round(word.accuracyScore)}
-                </div>
-              </div>
-            ))}
+          <div className="text-[11px] font-bold uppercase text-slate-400">
+            Từng âm tiết · thanh điệu
           </div>
+          <div className="mt-3">
+            <SyllableBreakdown words={words} />
+          </div>
+        </div>
+      )}
+
+      {tips.length > 0 && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <div className="text-[11px] font-bold uppercase text-amber-600">Âm tiết cần luyện thêm</div>
+          <ul className="mt-1.5 space-y-1 text-[12.5px] font-medium leading-5 text-amber-900">
+            {tips.map((tip, index) => (
+              <li key={index}>• {tip}</li>
+            ))}
+          </ul>
         </div>
       )}
     </aside>

@@ -105,7 +105,7 @@ class ConversationControllerTest {
             new MessageDto(UUID.randomUUID(), "assistant", "好的，您要热茶吗？", "/api/audio/reply.mp3", now),
             new PronunciationResponse(
                 UUID.randomUUID(), "我要一杯茶。", "我要一杯茶。",
-                90, 88, 0, null, 89, List.of(), now
+                90, 88, null, null, 89, false, List.of(), now
             ),
             95,
             92,

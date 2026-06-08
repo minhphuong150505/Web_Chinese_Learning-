@@ -47,6 +47,21 @@ public class PronunciationScore {
     @Column(name = "word_details", nullable = false, columnDefinition = "jsonb")
     private String wordDetailsJson;
 
+    @Column(name = "scripted", nullable = false)
+    private boolean scripted;
+
+    // Round 26 Phase 0 corpus collection. audioConsent records whether the learner
+    // opted in; audioPath is the stored WAV (null when not collected); audio is
+    // purged when audioRetentionUntil passes.
+    @Column(name = "audio_consent", nullable = false)
+    private boolean audioConsent;
+
+    @Column(name = "audio_path")
+    private String audioPath;
+
+    @Column(name = "audio_retention_until")
+    private Instant audioRetentionUntil;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -63,6 +78,10 @@ public class PronunciationScore {
                               BigDecimal prosodyScore,
                               BigDecimal pronScore,
                               String wordDetailsJson,
+                              boolean scripted,
+                              boolean audioConsent,
+                              String audioPath,
+                              Instant audioRetentionUntil,
                               Instant createdAt) {
         this.id = id;
         this.userId = userId;
@@ -74,6 +93,10 @@ public class PronunciationScore {
         this.prosodyScore = prosodyScore;
         this.pronScore = pronScore;
         this.wordDetailsJson = wordDetailsJson;
+        this.scripted = scripted;
+        this.audioConsent = audioConsent;
+        this.audioPath = audioPath;
+        this.audioRetentionUntil = audioRetentionUntil;
         this.createdAt = createdAt;
     }
 
@@ -115,6 +138,28 @@ public class PronunciationScore {
 
     public String getWordDetailsJson() {
         return wordDetailsJson;
+    }
+
+    public boolean isScripted() {
+        return scripted;
+    }
+
+    public boolean isAudioConsent() {
+        return audioConsent;
+    }
+
+    public String getAudioPath() {
+        return audioPath;
+    }
+
+    public Instant getAudioRetentionUntil() {
+        return audioRetentionUntil;
+    }
+
+    /** Marks the stored clip as removed once the retention sweep deletes the file. */
+    public void clearAudio() {
+        this.audioPath = null;
+        this.audioRetentionUntil = null;
     }
 
     public Instant getCreatedAt() {

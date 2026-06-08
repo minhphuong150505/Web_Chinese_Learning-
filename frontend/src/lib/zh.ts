@@ -33,3 +33,56 @@ export function parseZh(compact: string): ZhToken[] {
     return { hz, py, tone: Number.parseInt(toneStr ?? '0', 10) || 0 };
   });
 }
+
+/** Mandarin tone names in learner-friendly Vietnamese. Index 0 = neutral. */
+export const MANDARIN_TONE_VI: Record<number, string> = {
+  0: 'thanh nhẹ',
+  1: 'thanh 1 (cao – ngang)',
+  2: 'thanh 2 (lên)',
+  3: 'thanh 3 (xuống rồi lên)',
+  4: 'thanh 4 (xuống mạnh)',
+};
+
+const TONE_MARKS: Record<string, string[]> = {
+  a: ['a', 'ā', 'á', 'ǎ', 'à'],
+  e: ['e', 'ē', 'é', 'ě', 'è'],
+  i: ['i', 'ī', 'í', 'ǐ', 'ì'],
+  o: ['o', 'ō', 'ó', 'ǒ', 'ò'],
+  u: ['u', 'ū', 'ú', 'ǔ', 'ù'],
+  ü: ['ü', 'ǖ', 'ǘ', 'ǚ', 'ǜ'],
+};
+
+/**
+ * Converts Azure's numeric pinyin ("hao3", "lv3", "shi4") into diacritic pinyin
+ * ("hǎo", "lǚ", "shì") plus the tone number. Tone 5 and 0 are neutral (no mark).
+ * Placement follows the standard rule: a > e > the o in "ou" > last vowel.
+ */
+export function numericPinyin(raw: string): { pinyin: string; tone: number } {
+  if (!raw) return { pinyin: '', tone: 0 };
+  let tone = 0;
+  let base = raw;
+  if (/[0-5]$/.test(raw)) {
+    tone = Number(raw[raw.length - 1]);
+    base = raw.slice(0, -1);
+  }
+  base = base.toLowerCase().replace(/u:/g, 'ü').replace(/v/g, 'ü');
+  if (tone === 0 || tone === 5) return { pinyin: base, tone: 0 };
+
+  let idx = base.indexOf('a');
+  if (idx < 0) idx = base.indexOf('e');
+  if (idx < 0 && base.includes('ou')) idx = base.indexOf('o');
+  if (idx < 0) {
+    for (let i = base.length - 1; i >= 0; i -= 1) {
+      const c = base[i];
+      if (c && 'aeiouü'.includes(c)) {
+        idx = i;
+        break;
+      }
+    }
+  }
+  if (idx < 0) return { pinyin: base, tone };
+
+  const vowel = base[idx] ?? '';
+  const marked = (TONE_MARKS[vowel] ?? [vowel, vowel, vowel, vowel, vowel])[tone] ?? vowel;
+  return { pinyin: base.slice(0, idx) + marked + base.slice(idx + 1), tone };
+}

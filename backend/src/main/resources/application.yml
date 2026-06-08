@@ -33,6 +33,12 @@ app:
     key: ${AZURE_SPEECH_KEY:}
     region: ${AZURE_SPEECH_REGION:southeastasia}
     language: zh-CN
+  corpus:
+    # Round 26 Phase 0 tone-corpus collection. Off by default; even when enabled,
+    # audio is stored only for attempts where the learner explicitly consented.
+    enabled: ${CORPUS_ENABLED:false}
+    storage-dir: ${CORPUS_STORAGE_DIR:/data/corpus}
+    retention-days: ${CORPUS_RETENTION_DAYS:90}
   auth:
     jwt:
       secret: ${JWT_SECRET:}
