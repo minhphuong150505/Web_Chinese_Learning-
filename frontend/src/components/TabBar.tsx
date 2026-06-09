@@ -1,7 +1,7 @@
 import Icon, { type IconName } from './Icon';
 import { useLanguage } from '../i18n/LanguageProvider';
 
-export type TabName = 'chat' | 'pronounce' | 'translate' | 'write';
+export type TabName = 'chat' | 'pronounce' | 'translate' | 'write' | 'hsk' | 'letter';
 
 interface TabDef {
   id: TabName;
@@ -15,21 +15,24 @@ const TABS: TabDef[] = [
   { id: 'pronounce', labelVi: 'Phát âm', labelEn: 'Pronounce', icon: 'wave' },
   { id: 'translate', labelVi: 'Dịch', labelEn: 'Translate', icon: 'lang' },
   { id: 'write', labelVi: 'Viết', labelEn: 'Write', icon: 'pen' },
+  { id: 'hsk', labelVi: 'Luyện HSK', labelEn: 'HSK', icon: 'book' },
+  { id: 'letter', labelVi: 'Thư gửi Kim Hân', labelEn: 'Thư gửi Kim Hân', icon: 'mail' },
 ];
 
 interface TabBarProps {
   active: TabName;
   onChange: (tab: TabName) => void;
   enabled: Record<TabName, boolean>;
+  visible?: Partial<Record<TabName, boolean>>;
 }
 
-export default function TabBar({ active, onChange, enabled }: TabBarProps) {
+export default function TabBar({ active, onChange, enabled, visible }: TabBarProps) {
   const { text } = useLanguage();
 
   return (
     <nav className="scroll flex-none overflow-x-auto border-b border-slate-200 bg-white px-3 sm:px-7" style={{ zIndex: 15 }}>
       <div className="mx-auto flex w-max min-w-full max-w-[1180px] gap-1">
-        {TABS.map((tab) =>
+        {TABS.filter((tab) => visible?.[tab.id] !== false).map((tab) =>
           enabled[tab.id] ? (
             <button
               key={tab.id}

@@ -31,6 +31,9 @@ const PATHS = {
   key: 'M21 2l-2 2 M15.5 7.5l-2 2 M14 3a7 7 0 1 0 7 7 7 7 0 0 0-7-7z M9.5 14.5 3 21 M5 19l2 2 M8 16l2 2',
   trash: 'M3 6h18 M8 6V4h8v2 M19 6l-1 15H6L5 6 M10 11v5 M14 11v5',
   chevDown: 'M6 9l6 6 6-6',
+  book: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z',
+  cards: 'M3 7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M7 3h12a2 2 0 0 1 2 2v12',
+  map: 'M9 4 3 7v13l6-3 6 3 6-3V4l-6 3-6-3z M9 4v13 M15 7v13',
 } as const;
 
 export type IconName = keyof typeof PATHS;

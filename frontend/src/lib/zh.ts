@@ -1,4 +1,4 @@
-import { getNumOfTone, segment } from 'pinyin-pro';
+import { customPinyin, pinyin } from 'pinyin-pro';
 
 export interface ZhToken {
   hz: string;
@@ -6,17 +6,36 @@ export interface ZhToken {
   tone: number;
 }
 
+// pinyin-pro handles polyphonic words and 一/不 tone changes, while these
+// common learner words need explicit neutral-tone pronunciation.
+customPinyin({
+  '谢谢': 'xiè xie',
+  '不客气': 'bú kè qi',
+  '客气': 'kè qi',
+  '包子': 'bāo zi',
+  '朋友': 'péng you',
+  '时候': 'shí hou',
+  '东西': 'dōng xi',
+  '知道': 'zhī dao',
+  '先生': 'xiān sheng',
+});
+
 /**
- * Converts plain text into context-aware word segments. Segmenting the full
- * sentence preserves polyphonic readings such as 银行 (yínháng) and 长大
- * (zhǎngdà), which are often wrong when each character is converted alone.
+ * Converts a complete sentence into context-aware syllables. The full sentence
+ * is analyzed before tokens are returned, preserving polyphonic readings such
+ * as 银行 (yín háng) and 长大 (zhǎng dà) without gluing syllables together.
  */
 export function toZhTokens(text: string): ZhToken[] {
-  return segment(text, { toneType: 'symbol', toneSandhi: false }).map(({ origin, result }) => {
-    if (origin === result) return { hz: origin, py: null, tone: 0 };
-    const tone = Number.parseInt(getNumOfTone(result), 10) || 0;
-    return { hz: origin, py: result, tone };
-  });
+  return pinyin(text, {
+    type: 'all',
+    toneType: 'symbol',
+    toneSandhi: true,
+    segmentit: 2,
+  }).map(({ origin, pinyin: syllable, num, isZh }) => ({
+    hz: origin,
+    py: isZh && syllable ? syllable : null,
+    tone: isZh ? num : 0,
+  }));
 }
 
 /**

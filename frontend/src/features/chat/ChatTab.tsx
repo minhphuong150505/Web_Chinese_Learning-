@@ -26,25 +26,42 @@ function savedConversationTitle(title: string, language: Language) {
 
 interface ConversationSetupProps {
   pending: boolean;
-  onCreate: (topic: ConversationPracticeTopic, scenario: string) => void;
+  error?: string;
+  onCreate: (topicTitle: string, scenario: string) => void;
   onCancel?: () => void;
 }
 
-function ConversationSetup({ pending, onCreate, onCancel }: ConversationSetupProps) {
+type SetupMode = 'preset' | 'custom';
+
+function ConversationSetup({ pending, error, onCreate, onCancel }: ConversationSetupProps) {
   const { language, text } = useLanguage();
+  const [mode, setMode] = useState<SetupMode>('preset');
   const [topicId, setTopicId] = useState(DEFAULT_TOPIC.id);
   const selectedTopic = CONVERSATION_TOPICS.find((topic) => topic.id === topicId) ?? DEFAULT_TOPIC;
-  const [scenario, setScenario] = useState(() => topicScenario(selectedTopic, language));
+  const [presetScenario, setPresetScenario] = useState(() => topicScenario(selectedTopic, language));
+  const [customTitle, setCustomTitle] = useState('');
+  const [customScenario, setCustomScenario] = useState('');
 
   function selectTopic(topic: ConversationPracticeTopic) {
     setTopicId(topic.id);
-    setScenario(topicScenario(topic, language));
+    setPresetScenario(topicScenario(topic, language));
   }
 
   function submit() {
-    const value = scenario.trim() || topicScenario(selectedTopic, language);
-    onCreate(selectedTopic, value);
+    if (mode === 'custom') {
+      const title = customTitle.trim();
+      const scenario = customScenario.trim();
+      if (title && scenario) {
+        onCreate(title, scenario);
+      }
+      return;
+    }
+
+    const scenario = presetScenario.trim() || topicScenario(selectedTopic, language);
+    onCreate(selectedTopic.title, scenario);
   }
+
+  const customReady = customTitle.trim().length > 0 && customScenario.trim().length > 0;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -69,57 +86,153 @@ function ConversationSetup({ pending, onCreate, onCancel }: ConversationSetupPro
         )}
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {CONVERSATION_TOPICS.map((topic) => {
-          const active = topic.id === topicId;
-          return (
-            <button
-              key={topic.id}
-              type="button"
-              onClick={() => selectTopic(topic)}
-              className={
-                'min-h-[78px] rounded-xl border px-3.5 py-3 text-left transition ' +
-                (active
-                  ? 'border-violet-400 bg-violet-50 shadow-sm'
-                  : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50')
-              }
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-[13.5px] font-extrabold text-slate-900">
-                  {topicTitle(topic, language)}
-                </span>
-                <span className="flex-none rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                  {topic.level}
-                </span>
-              </div>
-              <div className="mt-1 font-zh text-[18px] font-semibold text-slate-500">{topic.zh}</div>
-            </button>
-          );
-        })}
+      <div className="mt-4 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+        <button
+          type="button"
+          onClick={() => setMode('preset')}
+          aria-pressed={mode === 'preset'}
+          className={
+            'h-10 rounded-lg text-[13px] font-bold transition ' +
+            (mode === 'preset'
+              ? 'bg-white text-violet-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700')
+          }
+        >
+          {text('Chủ đề gợi ý', 'Suggested topics')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('custom')}
+          aria-pressed={mode === 'custom'}
+          className={
+            'inline-flex h-10 items-center justify-center gap-2 rounded-lg text-[13px] font-bold transition ' +
+            (mode === 'custom'
+              ? 'bg-white text-violet-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700')
+          }
+        >
+          <Icon name="spark" size={14} />
+          {text('Tùy chỉnh', 'Custom')}
+        </button>
       </div>
 
-      <label className="mt-4 block">
-        <span className="text-[12px] font-bold uppercase tracking-wide text-slate-400">
-          {text('Nội dung hội thoại', 'Conversation scenario')}
-        </span>
-        <textarea
-          value={scenario}
-          onChange={(e) => setScenario(e.target.value)}
-          maxLength={1200}
-          rows={4}
-          className="scroll mt-2 min-h-[116px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] leading-6 text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
-        />
-      </label>
+      {mode === 'preset' ? (
+        <>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {CONVERSATION_TOPICS.map((topic) => {
+              const active = topic.id === topicId;
+              return (
+                <button
+                  key={topic.id}
+                  type="button"
+                  onClick={() => selectTopic(topic)}
+                  className={
+                    'min-h-[78px] rounded-xl border px-3.5 py-3 text-left transition ' +
+                    (active
+                      ? 'border-violet-400 bg-violet-50 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50')
+                  }
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-[13.5px] font-extrabold text-slate-900">
+                      {topicTitle(topic, language)}
+                    </span>
+                    <span className="flex-none rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                      {topic.level}
+                    </span>
+                  </div>
+                  <div className="mt-1 font-zh text-[18px] font-semibold text-slate-500">
+                    {topic.zh}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
 
+          <label className="mt-4 block">
+            <span className="text-[12px] font-bold uppercase tracking-wide text-slate-400">
+              {text('Nội dung hội thoại', 'Conversation scenario')}
+            </span>
+            <textarea
+              value={presetScenario}
+              onChange={(e) => setPresetScenario(e.target.value)}
+              maxLength={1200}
+              rows={4}
+              className="scroll mt-2 min-h-[116px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] leading-6 text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
+            />
+          </label>
+        </>
+      ) : (
+        <div className="mt-4 space-y-4 rounded-2xl border border-violet-100 bg-violet-50/40 p-4">
+          <div>
+            <label
+              htmlFor="custom-conversation-title"
+              className="text-[12px] font-bold uppercase tracking-wide text-slate-500"
+            >
+              {text('Tên cuộc hội thoại', 'Conversation name')}
+            </label>
+            <input
+              id="custom-conversation-title"
+              type="text"
+              value={customTitle}
+              onChange={(e) => setCustomTitle(e.target.value)}
+              maxLength={80}
+              autoFocus
+              placeholder={text(
+                'Ví dụ: Gặp đối tác tại hội chợ',
+                'Example: Meeting a partner at a trade fair',
+              )}
+              className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[14px] font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            />
+            <div className="mt-1 text-right text-[11px] font-semibold text-slate-400">
+              {customTitle.length}/80
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="custom-conversation-scenario"
+              className="text-[12px] font-bold uppercase tracking-wide text-slate-500"
+            >
+              {text('Mô tả chi tiết', 'Detailed description')}
+            </label>
+            <textarea
+              id="custom-conversation-scenario"
+              value={customScenario}
+              onChange={(e) => setCustomScenario(e.target.value)}
+              maxLength={1200}
+              rows={6}
+              placeholder={text(
+                'Mô tả vai của AI và người học, địa điểm, mục tiêu luyện tập, tình huống và từ vựng muốn sử dụng...',
+                'Describe the AI and learner roles, setting, practice goal, situation, and useful vocabulary...',
+              )}
+              className="scroll mt-2 min-h-[148px] w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-[14px] leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            />
+            <div className="mt-1 flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-400">
+              <span>
+                {text(
+                  'LLM sẽ dùng mô tả này làm ngữ cảnh xuyên suốt.',
+                  'The LLM will use this context throughout the conversation.',
+                )}
+              </span>
+              <span className="flex-none">{customScenario.length}/1200</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && <p className="mt-3 text-[12px] font-semibold text-red-600">{error}</p>}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <div className="text-[12px] font-semibold text-slate-400">
-          HSK 2-3 · {text('Bối cảnh nhập vai', 'Role-play context')}
+          {mode === 'custom'
+            ? text('Hội thoại theo ngữ cảnh riêng', 'Conversation from your own context')
+            : `HSK 2-3 · ${text('Bối cảnh nhập vai', 'Role-play context')}`}
         </div>
         <button
           type="button"
           onClick={submit}
-          disabled={pending}
-          className="inline-flex h-10 items-center gap-2 rounded-full bg-violet-600 px-4 text-[13px] font-bold text-white shadow-accent transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
+          disabled={pending || (mode === 'custom' && !customReady)}
+          className="inline-flex h-10 items-center gap-2 rounded-full bg-violet-600 px-4 text-[13px] font-bold text-white shadow-accent transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending ? <Spinner size={15} /> : <Icon name="spark" size={15} />}
           {text('Tạo hội thoại', 'Create conversation')}
@@ -167,9 +280,9 @@ export default function ChatTab() {
     ? topicTitle(selectedTopic, language)
     : selectedConversation?.title;
 
-  function createPractice(topic: ConversationPracticeTopic, scenario: string) {
+  function createPractice(topicTitle: string, scenario: string) {
     createConversation.mutate(
-      { topicTitle: topic.title, scenario },
+      { topicTitle, scenario },
       { onSuccess: () => setSetupOpen(false) },
     );
   }
@@ -197,7 +310,10 @@ export default function ChatTab() {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => setSetupOpen(true)}
+            onClick={() => {
+              createConversation.reset();
+              setSetupOpen(true);
+            }}
             className="inline-flex h-10 items-center gap-2 rounded-full border border-violet-200 bg-white px-4 text-[13px] font-bold text-violet-700 transition hover:bg-violet-50"
           >
             <Icon name="spark" size={16} />
@@ -250,7 +366,11 @@ export default function ChatTab() {
       ) : !conversationId ? (
         <div className="scroll flex-1 overflow-y-auto px-7 pb-10">
           <div className="mx-auto max-w-[980px] pt-3">
-            <ConversationSetup pending={createConversation.isPending} onCreate={createPractice} />
+            <ConversationSetup
+              pending={createConversation.isPending}
+              error={createConversation.isError ? createConversation.error.message : undefined}
+              onCreate={createPractice}
+            />
           </div>
         </div>
       ) : (
@@ -277,8 +397,12 @@ export default function ChatTab() {
           <div className="scroll max-h-full w-full max-w-[860px] overflow-y-auto">
             <ConversationSetup
               pending={createConversation.isPending}
+              error={createConversation.isError ? createConversation.error.message : undefined}
               onCreate={createPractice}
-              onCancel={() => setSetupOpen(false)}
+              onCancel={() => {
+                createConversation.reset();
+                setSetupOpen(false);
+              }}
             />
           </div>
         </div>

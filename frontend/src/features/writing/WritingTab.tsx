@@ -35,24 +35,41 @@ function savedWritingTitle(title: string, language: Language) {
 
 interface WritingSetupProps {
   pending: boolean;
-  onCreate: (topic: WritingPracticeTopic, context: string) => void;
+  error?: string;
+  onCreate: (topicTitle: string, context: string) => void;
   onCancel?: () => void;
 }
 
-function WritingSetup({ pending, onCreate, onCancel }: WritingSetupProps) {
+type WritingSetupMode = 'preset' | 'custom';
+
+function WritingSetup({ pending, error, onCreate, onCancel }: WritingSetupProps) {
   const { language, text } = useLanguage();
+  const [mode, setMode] = useState<WritingSetupMode>('preset');
   const [topicId, setTopicId] = useState(DEFAULT_WRITING_TOPIC.id);
   const selectedTopic = WRITING_TOPICS.find((topic) => topic.id === topicId) ?? DEFAULT_WRITING_TOPIC;
-  const [context, setContext] = useState(() => writingContext(selectedTopic, language));
+  const [presetContext, setPresetContext] = useState(() => writingContext(selectedTopic, language));
+  const [customTitle, setCustomTitle] = useState('');
+  const [customContext, setCustomContext] = useState('');
 
   function selectTopic(topic: WritingPracticeTopic) {
     setTopicId(topic.id);
-    setContext(writingContext(topic, language));
+    setPresetContext(writingContext(topic, language));
   }
 
   function submit() {
-    onCreate(selectedTopic, context.trim() || writingContext(selectedTopic, language));
+    if (mode === 'custom') {
+      const title = customTitle.trim();
+      const context = customContext.trim();
+      if (title && context) {
+        onCreate(title, context);
+      }
+      return;
+    }
+
+    onCreate(selectedTopic.title, presetContext.trim() || writingContext(selectedTopic, language));
   }
+
+  const customReady = customTitle.trim().length > 0 && customContext.trim().length > 0;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -77,57 +94,153 @@ function WritingSetup({ pending, onCreate, onCancel }: WritingSetupProps) {
         )}
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {WRITING_TOPICS.map((topic) => {
-          const active = topic.id === topicId;
-          return (
-            <button
-              key={topic.id}
-              type="button"
-              onClick={() => selectTopic(topic)}
-              className={
-                'min-h-[78px] rounded-xl border px-3.5 py-3 text-left transition ' +
-                (active
-                  ? 'border-violet-400 bg-violet-50 shadow-sm'
-                  : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50')
-              }
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-[13.5px] font-extrabold text-slate-900">
-                  {writingTopicTitle(topic, language)}
-                </span>
-                <span className="flex-none rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                  {topic.level}
-                </span>
-              </div>
-              <div className="mt-1 font-zh text-[18px] font-semibold text-slate-500">{topic.zh}</div>
-            </button>
-          );
-        })}
+      <div className="mt-4 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+        <button
+          type="button"
+          onClick={() => setMode('preset')}
+          aria-pressed={mode === 'preset'}
+          className={
+            'h-10 rounded-lg text-[13px] font-bold transition ' +
+            (mode === 'preset'
+              ? 'bg-white text-violet-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700')
+          }
+        >
+          {text('Chủ đề gợi ý', 'Suggested topics')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('custom')}
+          aria-pressed={mode === 'custom'}
+          className={
+            'inline-flex h-10 items-center justify-center gap-2 rounded-lg text-[13px] font-bold transition ' +
+            (mode === 'custom'
+              ? 'bg-white text-violet-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700')
+          }
+        >
+          <Icon name="spark" size={14} />
+          {text('Tùy chỉnh', 'Custom')}
+        </button>
       </div>
 
-      <label className="mt-4 block">
-        <span className="text-[12px] font-bold uppercase tracking-wide text-slate-400">
-          {text('Nội dung đề viết', 'Writing prompt context')}
-        </span>
-        <textarea
-          value={context}
-          onChange={(e) => setContext(e.target.value)}
-          maxLength={1200}
-          rows={4}
-          className="scroll mt-2 min-h-[116px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] leading-6 text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
-        />
-      </label>
+      {mode === 'preset' ? (
+        <>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {WRITING_TOPICS.map((topic) => {
+              const active = topic.id === topicId;
+              return (
+                <button
+                  key={topic.id}
+                  type="button"
+                  onClick={() => selectTopic(topic)}
+                  className={
+                    'min-h-[78px] rounded-xl border px-3.5 py-3 text-left transition ' +
+                    (active
+                      ? 'border-violet-400 bg-violet-50 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50')
+                  }
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-[13.5px] font-extrabold text-slate-900">
+                      {writingTopicTitle(topic, language)}
+                    </span>
+                    <span className="flex-none rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                      {topic.level}
+                    </span>
+                  </div>
+                  <div className="mt-1 font-zh text-[18px] font-semibold text-slate-500">
+                    {topic.zh}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
 
+          <label className="mt-4 block">
+            <span className="text-[12px] font-bold uppercase tracking-wide text-slate-400">
+              {text('Nội dung đề viết', 'Writing prompt context')}
+            </span>
+            <textarea
+              value={presetContext}
+              onChange={(e) => setPresetContext(e.target.value)}
+              maxLength={1200}
+              rows={4}
+              className="scroll mt-2 min-h-[116px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] leading-6 text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
+            />
+          </label>
+        </>
+      ) : (
+        <div className="mt-4 space-y-4 rounded-2xl border border-violet-100 bg-violet-50/40 p-4">
+          <div>
+            <label
+              htmlFor="custom-writing-title"
+              className="text-[12px] font-bold uppercase tracking-wide text-slate-500"
+            >
+              {text('Tên đề viết', 'Writing task name')}
+            </label>
+            <input
+              id="custom-writing-title"
+              type="text"
+              value={customTitle}
+              onChange={(e) => setCustomTitle(e.target.value)}
+              maxLength={80}
+              autoFocus
+              placeholder={text(
+                'Ví dụ: Email xin nghỉ học',
+                'Example: Asking for a school absence',
+              )}
+              className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[14px] font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            />
+            <div className="mt-1 text-right text-[11px] font-semibold text-slate-400">
+              {customTitle.length}/80
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="custom-writing-context"
+              className="text-[12px] font-bold uppercase tracking-wide text-slate-500"
+            >
+              {text('Mô tả chi tiết', 'Detailed description')}
+            </label>
+            <textarea
+              id="custom-writing-context"
+              value={customContext}
+              onChange={(e) => setCustomContext(e.target.value)}
+              maxLength={1200}
+              rows={6}
+              placeholder={text(
+                'Mô tả loại bài viết, người nhận/ngữ cảnh, mục tiêu luyện tập, độ khó, từ vựng hoặc cấu trúc muốn dùng...',
+                'Describe the writing type, audience/context, practice goal, difficulty, useful vocabulary, or grammar patterns...',
+              )}
+              className="scroll mt-2 min-h-[148px] w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-[14px] leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            />
+            <div className="mt-1 flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-400">
+              <span>
+                {text(
+                  'LLM sẽ tạo đề viết tiếng Trung từ mô tả này.',
+                  'The LLM will create a Chinese writing prompt from this context.',
+                )}
+              </span>
+              <span className="flex-none">{customContext.length}/1200</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && <p className="mt-3 text-[12px] font-semibold text-red-600">{error}</p>}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <div className="text-[12px] font-semibold text-slate-400">
-          HSK 2-3 · {text('Đề luyện viết', 'Writing prompt')}
+          {mode === 'custom'
+            ? text('Đề viết theo ngữ cảnh riêng', 'Writing task from your own context')
+            : `HSK 2-3 · ${text('Đề luyện viết', 'Writing prompt')}`}
         </div>
         <button
           type="button"
           onClick={submit}
-          disabled={pending}
-          className="inline-flex h-10 items-center gap-2 rounded-full bg-violet-600 px-4 text-[13px] font-bold text-white shadow-accent transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
+          disabled={pending || (mode === 'custom' && !customReady)}
+          className="inline-flex h-10 items-center gap-2 rounded-full bg-violet-600 px-4 text-[13px] font-bold text-white shadow-accent transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending ? <Spinner size={15} /> : <Icon name="spark" size={15} />}
           {text('Tạo đề viết', 'Create writing task')}
@@ -155,13 +268,13 @@ export default function WritingTab() {
     feedback.mutate({ text: text.trim(), topic: topic.trim() || null });
   }
 
-  function createWritingTask(selectedTopic: WritingPracticeTopic, context: string) {
+  function createWritingTask(topicTitle: string, context: string) {
     prompt.mutate(
-      { topicTitle: selectedTopic.title, context },
+      { topicTitle, context },
       {
         onSuccess: (data) => {
           setActivePrompt(data);
-          setTopic(writingTopicTitle(selectedTopic, language));
+          setTopic(savedWritingTitle(topicTitle, language));
           setText('');
           feedback.reset();
           setSetupOpen(false);
@@ -185,7 +298,10 @@ export default function WritingTab() {
           </div>
           <button
             type="button"
-            onClick={() => setSetupOpen(true)}
+            onClick={() => {
+              prompt.reset();
+              setSetupOpen(true);
+            }}
             className="inline-flex h-10 items-center gap-2 rounded-full border border-violet-200 bg-white px-4 text-[13px] font-bold text-violet-700 transition hover:bg-violet-50"
           >
             <Icon name="spark" size={16} />
@@ -268,8 +384,12 @@ export default function WritingTab() {
           <div className="scroll max-h-full w-full max-w-[860px] overflow-y-auto">
             <WritingSetup
               pending={prompt.isPending}
+              error={prompt.isError ? prompt.error.message : undefined}
               onCreate={createWritingTask}
-              onCancel={() => setSetupOpen(false)}
+              onCancel={() => {
+                prompt.reset();
+                setSetupOpen(false);
+              }}
             />
           </div>
         </div>

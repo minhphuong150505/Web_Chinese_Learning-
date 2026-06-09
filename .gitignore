@@ -19,3 +19,12 @@ __pycache__/
 
 .env
 *.env.local
+
+# Scanned textbooks served from filesystem (1.5GB, never in git)
+TaiLieu/
+
+# Private personal content (deployed via rsync, kept out of the public repo)
+backend/src/main/resources/private/
+frontend/public/love.png
+ThuGuiKimHan.md
+/love.png

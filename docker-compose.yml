@@ -48,12 +48,15 @@ services:
       JWT_EXPIRY_DAYS: ${JWT_EXPIRY_DAYS:-7}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       CORS_ALLOWED_ORIGIN_PATTERNS: ${CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*,https://kanhim0105.com,https://www.kanhim0105.com}
+      HSK_MATERIALS_DIR: /data/hsk
+      LETTER_ALLOWED_EMAILS: ${LETTER_ALLOWED_EMAILS:-nguoiyeukimhan}
       SINGLE_USER_ENABLED: ${SINGLE_USER_ENABLED:-false}
       SINGLE_USER_USERNAME: ${SINGLE_USER_USERNAME:-}
       SINGLE_USER_PASSWORD: ${SINGLE_USER_PASSWORD:-}
       SINGLE_USER_DISPLAY_NAME: ${SINGLE_USER_DISPLAY_NAME:-Learner}
     volumes:
       - audio_data:/data/audio
+      - ./TaiLieu:/data/hsk:ro
     ports:
       - "8080:8080"
 
@@ -63,6 +66,7 @@ services:
       args:
         # Vite inlines env at build time, so the client id is passed as a build arg.
         VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+        VITE_LETTER_ALLOWED_EMAILS: ${VITE_LETTER_ALLOWED_EMAILS:-nguoiyeukimhan}
     depends_on:
       - backend
     ports:

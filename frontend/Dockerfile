@@ -6,6 +6,8 @@ COPY . .
 # Google OAuth client id is inlined into the bundle at build time (public, not secret).
 ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+ARG VITE_LETTER_ALLOWED_EMAILS
+ENV VITE_LETTER_ALLOWED_EMAILS=$VITE_LETTER_ALLOWED_EMAILS
 RUN npm run build
 
 FROM nginx:alpine

@@ -22,6 +22,10 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
+            // Default is X-Frame-Options: DENY, which blocks even same-origin framing.
+            // The HSK Materials tab renders the PDF books inside an <iframe>, so allow
+            // same-origin framing (still blocks cross-site clickjacking).
+            .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // /api/audio/** is public on purpose: it is fetched by a native <audio src>
@@ -32,7 +36,11 @@ public class SecurityConfig {
                     "/api/auth/google",
                     "/api/auth/login",
                     "/api/auth/register",
-                    "/api/audio/**"
+                    "/api/audio/**",
+                    // HSK study materials (PDF books + listening MP3s) are loaded by
+                    // native <iframe src>/<audio src> tags that cannot send the JWT
+                    // header. Served read-only from a fixed directory; see HskMaterialConfig.
+                    "/api/hsk/material/**"
                 ).permitAll()
                 .anyRequest().authenticated())
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

@@ -325,9 +325,12 @@ public class ConversationServiceImpl implements ConversationService {
                 Conversation practice context:
                 %s
 
+                Conversation title/topic:
+                %s
+
                 Learner-provided scenario:
                 %s
-                """.formatted(systemContext, scenario).trim(),
+                """.formatted(systemContext, topicTitle, scenario).trim(),
                 openingMessage
             );
         } catch (Exception ex) {

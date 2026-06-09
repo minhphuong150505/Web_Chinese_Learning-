@@ -37,7 +37,7 @@ class ConversationServiceImplTest {
     private static final UUID USER_ID = UUID.randomUUID();
 
     @Test
-    void createConversation_givenScenario_thenPlansContextAndOpeningMessage() {
+    void createConversation_givenCustomTitleAndScenario_thenPlansContextAndOpeningMessage() {
         ConversationRepository convRepo = mock(ConversationRepository.class);
         MessageRepository msgRepo = mock(MessageRepository.class);
         LlmClient llm = mock(LlmClient.class);
@@ -48,17 +48,20 @@ class ConversationServiceImplTest {
         when(convRepo.save(any(Conversation.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(msgRepo.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(llm.chat(any())).thenReturn("""
-            {"systemContext":"Role-play as a hotel receptionist. Help the learner check in.",
-             "openingMessage":"您好，欢迎来到我们酒店。您有预订吗？"}
+            {"systemContext":"Role-play as a potential business partner at a trade fair.",
+             "openingMessage":"您好，很高兴认识您。您想介绍什么产品？"}
             """);
-        when(tts.synthesize("您好，欢迎来到我们酒店。您有预订吗？")).thenReturn("hotel.mp3");
+        when(tts.synthesize("您好，很高兴认识您。您想介绍什么产品？")).thenReturn("trade-fair.mp3");
 
         ConversationDto dto = service.createConversation(
             USER_ID,
-            new CreateConversationRequest("Hotel check-in", "I want to practice checking in and asking about breakfast.")
+            new CreateConversationRequest(
+                "Business fair partner meeting",
+                "I am an exhibitor meeting a potential partner and want to discuss products and pricing."
+            )
         );
 
-        assertThat(dto.title()).isEqualTo("Hotel check-in");
+        assertThat(dto.title()).isEqualTo("Business fair partner meeting");
 
         ArgumentCaptor<Conversation> conversationCaptor = ArgumentCaptor.forClass(Conversation.class);
         verify(convRepo).save(conversationCaptor.capture());
@@ -68,16 +71,17 @@ class ConversationServiceImplTest {
         verify(msgRepo, org.mockito.Mockito.times(2)).save(messageCaptor.capture());
         List<Message> messages = messageCaptor.getAllValues();
         assertThat(messages).extracting(Message::getRole).containsExactly("system", "assistant");
-        assertThat(messages.get(0).getContent()).contains("hotel receptionist");
-        assertThat(messages.get(0).getContent()).contains("checking in");
-        assertThat(messages.get(1).getContent()).isEqualTo("您好，欢迎来到我们酒店。您有预订吗？");
-        assertThat(messages.get(1).getAudioPath()).isEqualTo("hotel.mp3");
+        assertThat(messages.get(0).getContent()).contains("business partner");
+        assertThat(messages.get(0).getContent()).contains("Business fair partner meeting");
+        assertThat(messages.get(0).getContent()).contains("potential partner");
+        assertThat(messages.get(1).getContent()).isEqualTo("您好，很高兴认识您。您想介绍什么产品？");
+        assertThat(messages.get(1).getAudioPath()).isEqualTo("trade-fair.mp3");
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<LlmClient.LlmMessage>> llmCaptor = ArgumentCaptor.forClass(List.class);
         verify(llm).chat(llmCaptor.capture());
-        assertThat(llmCaptor.getValue().get(1).content()).contains("Hotel check-in");
-        assertThat(llmCaptor.getValue().get(1).content()).contains("checking in");
+        assertThat(llmCaptor.getValue().get(1).content()).contains("Business fair partner meeting");
+        assertThat(llmCaptor.getValue().get(1).content()).contains("potential partner");
         assertThat(llmCaptor.getValue())
             .extracting(LlmClient.LlmMessage::content)
             .allSatisfy(content -> assertThat(content).doesNotContainIgnoringCase("restaurant"));

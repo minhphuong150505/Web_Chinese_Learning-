@@ -20,6 +20,13 @@ server:
 app:
   cors:
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,https://kanhim0105.com,https://www.kanhim0105.com}
+  letter:
+    allowed-emails: ${LETTER_ALLOWED_EMAILS:nguoiyeukimhan}
+  hsk:
+    # Directory holding the HSK1..HSK4 study-material sub-folders (PDF books +
+    # HSK 4 listening MP3s). Large scanned files: served from the filesystem,
+    # never bundled into the JAR. Defaults to the repo-level TaiLieu folder.
+    materials-dir: ${HSK_MATERIALS_DIR:../TaiLieu}
   llm:
     provider: ${LLM_PROVIDER:deepseek}
     base-url: ${LLM_BASE_URL:https://api.deepseek.com}
