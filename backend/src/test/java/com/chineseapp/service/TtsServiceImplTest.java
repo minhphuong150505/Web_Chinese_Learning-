@@ -45,6 +45,29 @@ class TtsServiceImplTest {
         }
     }
 
+    @Test
+    void delete_givenStoredAudio_thenDeletesFile() throws Exception {
+        TtsService service = new TtsServiceImpl(mock(EdgeTtsClient.class), properties(tempDir));
+        Path audio = tempDir.resolve("recording.mp3");
+        Files.write(audio, new byte[] { 1, 2, 3 });
+
+        service.delete("recording.mp3");
+
+        assertThat(audio).doesNotExist();
+    }
+
+    @Test
+    void delete_givenEscapingPath_thenKeepsOutsideFile() throws Exception {
+        TtsService service = new TtsServiceImpl(mock(EdgeTtsClient.class), properties(tempDir));
+        Path outside = tempDir.getParent().resolve("outside.mp3");
+        Files.write(outside, new byte[] { 1, 2, 3 });
+
+        service.delete("../outside.mp3");
+
+        assertThat(outside).exists();
+        Files.delete(outside);
+    }
+
     private static TtsProperties properties(Path storageDir) {
         TtsProperties properties = new TtsProperties();
         properties.setBaseUrl("http://localhost:8001");

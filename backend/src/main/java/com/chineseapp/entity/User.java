@@ -75,4 +75,8 @@ public class User {
     public void linkGoogleAccount(String googleSub) {
         this.googleSub = googleSub;
     }
+
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
 }

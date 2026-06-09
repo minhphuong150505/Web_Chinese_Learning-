@@ -45,4 +45,22 @@ public class TtsServiceImpl implements TtsService {
             return null;
         }
     }
+
+    @Override
+    public void delete(String audioPath) {
+        if (audioPath == null || audioPath.isBlank()) {
+            return;
+        }
+        Path base = Path.of(props.getStorageDir()).toAbsolutePath().normalize();
+        Path target = base.resolve(audioPath).normalize();
+        if (!target.startsWith(base)) {
+            log.warn("Refusing to delete TTS path outside base: {}", audioPath);
+            return;
+        }
+        try {
+            Files.deleteIfExists(target);
+        } catch (Exception ex) {
+            log.warn("TTS audio delete failed for {} ({})", audioPath, ex.getMessage());
+        }
+    }
 }

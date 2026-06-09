@@ -132,12 +132,24 @@ public class AuthServiceImpl implements AuthService {
         if (expectedUsername.isBlank() || expectedPassword.isBlank()) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "Private account is not configured");
         }
-        if (!normalizeEmail(username).equals(expectedUsername) || !constantTimeEquals(password, expectedPassword)) {
+        if (!normalizeEmail(username).equals(expectedUsername)) {
             throw invalidCredentials();
         }
 
-        User user = userRepo.findByEmail(expectedUsername)
-            .orElseGet(() -> userRepo.save(new User(
+        User user = userRepo.findByEmail(expectedUsername).orElse(null);
+        if (user != null) {
+            if (user.getPasswordHash() == null
+                || !passwordEncoder.matches(password, user.getPasswordHash())) {
+                throw invalidCredentials();
+            }
+            return authenticate(user);
+        }
+
+        if (!constantTimeEquals(password, expectedPassword)) {
+            throw invalidCredentials();
+        }
+
+        return authenticate(userRepo.save(new User(
                 UUID.randomUUID(),
                 expectedUsername,
                 null,
@@ -145,7 +157,6 @@ public class AuthServiceImpl implements AuthService {
                 singleUser.getDisplayName().trim(),
                 Instant.now()
             )));
-        return authenticate(user);
     }
 
     private boolean constantTimeEquals(String actual, String expected) {

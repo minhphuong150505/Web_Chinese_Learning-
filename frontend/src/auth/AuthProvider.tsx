@@ -13,6 +13,7 @@ export interface AuthState {
   token: string | null;
   isLoading: boolean;
   login: (token: string, user: User) => void;
+  updateUser: (user: User) => void;
   logout: () => void;
 }
 
@@ -57,8 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }
 
+  function updateUser(nextUser: User) {
+    setUser(nextUser);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -28,6 +28,9 @@ const PATHS = {
   phoneOff: 'M22 2 2 22 M9.5 5.5 9 5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2 18 18 0 0 0 5.5 13 M16 16l2 2c4 4 7 1 7-1v-3a2 2 0 0 0-2-2h-3a2 2 0 0 0-1.5.7',
   keyboard: 'M10 8h.01 M12 12h.01 M14 8h.01 M16 12h.01 M18 8h.01 M6 8h.01 M7 16h10 M8 12h.01 M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z',
   micOff: 'M2 2 22 22 M18.89 13.23A7 7 0 0 0 19 12v-2 M5 10v2a7 7 0 0 0 12 5 M15 9.34V5a3 3 0 0 0-5.68-1.33 M9 9v3a3 3 0 0 0 5.12 2.12 M12 19v3',
+  key: 'M21 2l-2 2 M15.5 7.5l-2 2 M14 3a7 7 0 1 0 7 7 7 7 0 0 0-7-7z M9.5 14.5 3 21 M5 19l2 2 M8 16l2 2',
+  trash: 'M3 6h18 M8 6V4h8v2 M19 6l-1 15H6L5 6 M10 11v5 M14 11v5',
+  chevDown: 'M6 9l6 6 6-6',
 } as const;
 
 export type IconName = keyof typeof PATHS;

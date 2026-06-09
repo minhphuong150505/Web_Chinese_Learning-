@@ -9,6 +9,8 @@ import com.chineseapp.exception.GlobalExceptionHandler;
 import com.chineseapp.repository.UserRepository;
 import com.chineseapp.security.JwtAuthFilter;
 import com.chineseapp.security.JwtService;
+import com.chineseapp.security.WithMockCurrentUser;
+import com.chineseapp.service.AccountService;
 import com.chineseapp.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,8 +22,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -38,6 +43,9 @@ class AuthControllerTest {
     private AuthService service;
 
     @MockBean
+    private AccountService accountService;
+
+    @MockBean
     private JwtService jwtService;
 
     @MockBean
@@ -48,7 +56,7 @@ class AuthControllerTest {
 
     @Test
     void login_withoutToken_thenReturnsAuthResponse() throws Exception {
-        UserDto user = new UserDto(UUID.randomUUID(), "member@example.com", "Member");
+        UserDto user = new UserDto(UUID.randomUUID(), "member@example.com", "Member", true);
         when(service.login("member@example.com", "secret123"))
             .thenReturn(new AuthResponse("app-jwt", user));
 
@@ -66,7 +74,7 @@ class AuthControllerTest {
 
     @Test
     void register_withoutToken_thenReturnsAuthResponse() throws Exception {
-        UserDto user = new UserDto(UUID.randomUUID(), "new@example.com", "New Member");
+        UserDto user = new UserDto(UUID.randomUUID(), "new@example.com", "New Member", true);
         when(service.register("New Member", "new@example.com", "secret123"))
             .thenReturn(new AuthResponse("app-jwt", user));
 
@@ -99,5 +107,51 @@ class AuthControllerTest {
             .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
 
         verifyNoInteractions(service);
+    }
+
+    @Test
+    @WithMockCurrentUser
+    void changePassword_givenAuthenticatedUser_thenReturnsNoContent() throws Exception {
+        mockMvc.perform(patch("/api/auth/password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"currentPassword":"old-password","newPassword":"new-password"}
+                    """))
+            .andExpect(status().isNoContent());
+
+        verify(accountService).changePassword(
+            UUID.fromString("00000000-0000-0000-0000-000000000001"),
+            "old-password",
+            "new-password"
+        );
+    }
+
+    @Test
+    @WithMockCurrentUser
+    void deleteAccount_givenAuthenticatedUser_thenReturnsNoContent() throws Exception {
+        mockMvc.perform(delete("/api/auth/account")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"currentPassword":"old-password","confirmation":"DELETE"}
+                    """))
+            .andExpect(status().isNoContent());
+
+        verify(accountService).deleteAccount(
+            UUID.fromString("00000000-0000-0000-0000-000000000001"),
+            "old-password",
+            "DELETE"
+        );
+    }
+
+    @Test
+    void deleteAccount_withoutToken_thenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(delete("/api/auth/account")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"confirmation":"DELETE"}
+                    """))
+            .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(accountService);
     }
 }

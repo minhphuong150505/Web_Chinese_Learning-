@@ -4,9 +4,14 @@ import com.chineseapp.entity.User;
 
 import java.util.UUID;
 
-public record UserDto(UUID id, String email, String displayName) {
+public record UserDto(UUID id, String email, String displayName, boolean hasPassword) {
 
     public static UserDto from(User user) {
-        return new UserDto(user.getId(), user.getEmail(), user.getDisplayName());
+        return new UserDto(
+            user.getId(),
+            user.getEmail(),
+            user.getDisplayName(),
+            user.getPasswordHash() != null
+        );
     }
 }

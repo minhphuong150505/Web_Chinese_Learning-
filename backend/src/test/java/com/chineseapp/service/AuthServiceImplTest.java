@@ -166,6 +166,30 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void login_givenExistingSingleUser_thenUsesStoredPasswordHash() {
+        authProperties.getSingleUser().setEnabled(true);
+        authProperties.getSingleUser().setUsername("privatelearner");
+        authProperties.getSingleUser().setPassword("original-config-password");
+        User existing = new User(
+            UUID.randomUUID(),
+            "privatelearner",
+            null,
+            "changed-password-hash",
+            "Private Learner",
+            Instant.now()
+        );
+        when(userRepo.findByEmail("privatelearner")).thenReturn(Optional.of(existing));
+        when(passwordEncoder.matches("changed-password", "changed-password-hash")).thenReturn(true);
+        when(jwtService.issue(existing)).thenReturn("app-jwt");
+
+        AuthResponse response = service.login("privatelearner", "changed-password");
+
+        assertThat(response.token()).isEqualTo("app-jwt");
+        verify(passwordEncoder).matches("changed-password", "changed-password-hash");
+        verify(userRepo, never()).save(any(User.class));
+    }
+
+    @Test
     void register_givenNewEmail_thenHashesPasswordAndReturnsToken() {
         when(userRepo.findByEmail("new@example.com")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("secret123")).thenReturn("password-hash");
