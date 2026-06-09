@@ -1,8 +1,10 @@
 package com.chineseapp.service;
 
 import com.chineseapp.client.LlmClient;
+import com.chineseapp.dto.writing.CreateWritingPromptRequest;
 import com.chineseapp.dto.writing.WritingFeedbackRequest;
 import com.chineseapp.dto.writing.WritingFeedbackResponse;
+import com.chineseapp.dto.writing.WritingPromptResponse;
 import com.chineseapp.exception.ApiException;
 import com.chineseapp.service.impl.WritingFeedbackServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,6 +31,29 @@ class WritingFeedbackServiceImplTest {
           ]
         }
         """;
+
+    @Test
+    void createPrompt_givenContext_thenReturnsWritingPrompt() {
+        LlmClient llm = mock(LlmClient.class);
+        when(llm.chat(any())).thenReturn("""
+            {"title":"Travel diary","promptText":"写三到五个句子，介绍你上次旅行去了哪里、做了什么、感觉怎么样。","level":"HSK 3"}
+            """);
+        WritingFeedbackService service = new WritingFeedbackServiceImpl(llm, new ObjectMapper());
+
+        WritingPromptResponse response = service.createPrompt(
+            new CreateWritingPromptRequest("Travel", "Write about a recent trip and feelings.")
+        );
+
+        assertThat(response.title()).isEqualTo("Travel diary");
+        assertThat(response.promptText()).contains("旅行");
+        assertThat(response.level()).isEqualTo("HSK 3");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<LlmClient.LlmMessage>> captor = ArgumentCaptor.forClass(List.class);
+        verify(llm).chat(captor.capture());
+        assertThat(captor.getValue().get(1).content()).contains("Travel");
+        assertThat(captor.getValue().get(1).content()).contains("recent trip");
+    }
 
     @Test
     void review_givenValidJson_thenDeserializesFields() {

@@ -8,6 +8,8 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -25,11 +27,22 @@ public class SecurityConfig {
                 // /api/audio/** is public on purpose: it is fetched by a native <audio src>
                 // tag, which cannot attach the Authorization header. Files are named with
                 // unguessable UUID v4s, so this is an unguessable-link guard, not open listing.
-                .requestMatchers("/api/health", "/api/auth/google", "/api/auth/mock", "/api/audio/**").permitAll()
+                .requestMatchers(
+                    "/api/health",
+                    "/api/auth/google",
+                    "/api/auth/login",
+                    "/api/auth/register",
+                    "/api/audio/**"
+                ).permitAll()
                 .anyRequest().authenticated())
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(e -> e.authenticationEntryPoint(
                 (req, res, ex) -> res.sendError(HttpStatus.UNAUTHORIZED.value(), "Unauthorized")));
         return http.build();
+    }
+
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../lib/apiClient';
-import type { ConversationDto, MessageDto } from '../types/chat';
+import type { ConversationDto, CreateConversationRequest, MessageDto } from '../types/chat';
 
 export function useConversation() {
   const queryClient = useQueryClient();
+  const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
 
   const conversations = useQuery({
     queryKey: ['conversations'],
@@ -12,19 +13,35 @@ export function useConversation() {
   });
 
   const createConversation = useMutation({
-    mutationFn: () => apiClient.post<ConversationDto>('/conversations').then((r) => r.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+    mutationFn: (request: CreateConversationRequest) =>
+      apiClient.post<ConversationDto>('/conversations', request).then((r) => r.data),
+    onSuccess: (created) => {
+      setSelectedConversationId(created.id);
+      queryClient.setQueryData<ConversationDto[]>(['conversations'], (prev = []) => [
+        created,
+        ...prev.filter((conversation) => conversation.id !== created.id),
+      ]);
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['messages', created.id] });
+    },
   });
 
   const list = conversations.data ?? [];
-  const conversationId = list[0]?.id;
+  const selectedExists = selectedConversationId
+    ? list.some((conversation) => conversation.id === selectedConversationId)
+    : false;
+  const conversationId = selectedExists ? selectedConversationId : list[0]?.id;
+  const selectedConversation = useMemo(
+    () => list.find((conversation) => conversation.id === conversationId),
+    [conversationId, list],
+  );
 
   useEffect(() => {
-    if (conversations.isSuccess && list.length === 0 && !createConversation.isPending) {
-      createConversation.mutate();
+    const firstConversation = list[0];
+    if (conversations.isSuccess && firstConversation && !conversationId) {
+      setSelectedConversationId(firstConversation.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversations.isSuccess, list.length]);
+  }, [conversationId, conversations.isSuccess, list]);
 
   const messages = useQuery({
     queryKey: ['messages', conversationId],
@@ -34,8 +51,12 @@ export function useConversation() {
   });
 
   return {
+    conversations: list,
+    selectedConversation,
     conversationId,
+    setConversationId: setSelectedConversationId,
+    createConversation,
     messages: messages.data ?? [],
-    isLoading: conversations.isLoading || messages.isLoading || createConversation.isPending,
+    isLoading: conversations.isLoading || (!!conversationId && messages.isLoading),
   };
 }

@@ -90,6 +90,41 @@ class PronunciationServiceImplTest {
     }
 
     @Test
+    void assess_givenIncompleteRead_thenScoresAccuracyAgainstWholeSentence() throws IOException {
+        AudioConversionService audioConv = mock(AudioConversionService.class);
+        AzureSpeechClient azure = mock(AzureSpeechClient.class);
+        ToneAnalysisClient tone = mock(ToneAnalysisClient.class);
+        PronunciationScoreRepository repo = mock(PronunciationScoreRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        when(tone.analyze(any(), any())).thenReturn(java.util.List.of());
+        PronunciationService service = new PronunciationServiceImpl(audioConv, azure, tone, repo, noStore(), objectMapper);
+
+        File wav = File.createTempFile("test-incomplete-", ".wav");
+        try {
+            when(audioConv.toWav16kMono(any(File.class))).thenReturn(wav);
+            when(azure.assess(any(File.class), anyString())).thenReturn(new AssessmentRawResult(
+                "你好", 100.0, 90.0, 50.0, 88.0, 100.0, readSampleJson()
+            ));
+            when(repo.save(any(PronunciationScore.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            MockMultipartFile audio = new MockMultipartFile("audio", "recording.webm", "audio/webm", new byte[]{1, 2, 3});
+
+            PronunciationResponse response = service.assess(UUID.randomUUID(), audio, "你好世界", false);
+
+            assertThat(response.completeness()).isEqualTo(50.0);
+            assertThat(response.accuracy()).isEqualTo(50.0);
+            assertThat(response.pronScore()).isEqualTo(50.0);
+
+            ArgumentCaptor<PronunciationScore> scoreCaptor = ArgumentCaptor.forClass(PronunciationScore.class);
+            verify(repo).save(scoreCaptor.capture());
+            assertThat(scoreCaptor.getValue().getAccuracyScore()).isEqualByComparingTo("50.00");
+            assertThat(scoreCaptor.getValue().getPronScore()).isEqualByComparingTo("50.00");
+        } finally {
+            Files.deleteIfExists(wav.toPath());
+        }
+    }
+
+    @Test
     void assess_mergesToneResultsOntoCorrectSyllablesAcrossWords() throws IOException {
         AudioConversionService audioConv = mock(AudioConversionService.class);
         AzureSpeechClient azure = mock(AzureSpeechClient.class);

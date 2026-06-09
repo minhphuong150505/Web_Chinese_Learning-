@@ -1,5 +1,6 @@
 package com.chineseapp.security;
 
+import com.chineseapp.config.AuthProperties;
 import com.chineseapp.entity.User;
 import com.chineseapp.repository.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -14,6 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,10 +30,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final AuthProperties authProperties;
 
-    public JwtAuthFilter(JwtService jwtService, UserRepository userRepository) {
+    public JwtAuthFilter(JwtService jwtService, UserRepository userRepository, AuthProperties authProperties) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.authProperties = authProperties;
     }
 
     @Override
@@ -49,8 +53,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     private void authenticate(User user) {
+        if (authProperties.getSingleUser().isEnabled() && !isAllowedSingleUser(user)) {
+            return;
+        }
         CurrentUser principal = new CurrentUser(user.getId(), user.getEmail(), user.getDisplayName());
         var auth = new UsernamePasswordAuthenticationToken(principal, null, List.of());
         SecurityContextHolder.getContext().setAuthentication(auth);
+    }
+
+    private boolean isAllowedSingleUser(User user) {
+        String expected = authProperties.getSingleUser().getUsername().trim().toLowerCase(Locale.ROOT);
+        return !expected.isBlank() && user.getEmail().trim().toLowerCase(Locale.ROOT).equals(expected);
     }
 }

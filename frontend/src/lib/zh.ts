@@ -1,4 +1,4 @@
-import { pinyin, getNumOfTone } from 'pinyin-pro';
+import { getNumOfTone, segment } from 'pinyin-pro';
 
 export interface ZhToken {
   hz: string;
@@ -7,17 +7,15 @@ export interface ZhToken {
 }
 
 /**
- * Converts plain text (as returned by the real API — no pinyin annotations)
- * into per-character tokens for <Hanzi> to render as tone-colored ruby text.
- * Non-Chinese characters (latin letters, punctuation, spaces) come back as
- * `{ py: null, tone: 0 }` and render as plain text.
+ * Converts plain text into context-aware word segments. Segmenting the full
+ * sentence preserves polyphonic readings such as 银行 (yínháng) and 长大
+ * (zhǎngdà), which are often wrong when each character is converted alone.
  */
 export function toZhTokens(text: string): ZhToken[] {
-  return Array.from(text).map((hz) => {
-    const py = pinyin(hz, { type: 'string', toneType: 'symbol' });
-    if (py === hz) return { hz, py: null, tone: 0 };
-    const tone = Number.parseInt(getNumOfTone(py), 10) || 0;
-    return { hz, py, tone };
+  return segment(text, { toneType: 'symbol', toneSandhi: false }).map(({ origin, result }) => {
+    if (origin === result) return { hz: origin, py: null, tone: 0 };
+    const tone = Number.parseInt(getNumOfTone(result), 10) || 0;
+    return { hz: origin, py: result, tone };
   });
 }
 
@@ -34,13 +32,73 @@ export function parseZh(compact: string): ZhToken[] {
   });
 }
 
+const PINYIN_PUNCTUATION: Record<string, string> = {
+  '，': ',',
+  '。': '.',
+  '！': '!',
+  '？': '?',
+  '；': ';',
+  '：': ':',
+  '、': ',',
+  '“': '“',
+  '”': '”',
+  '‘': '‘',
+  '’': '’',
+};
+
+const CLOSING_PUNCTUATION = new Set([',', '.', '!', '?', ';', ':', '”', '’']);
+const OPENING_PUNCTUATION = new Set(['“', '‘']);
+
+/**
+ * Formats tokens as the compact pinyin line used by Hanzii: word-level pinyin,
+ * tone marks, spaces between segments, and western sentence punctuation.
+ */
+export function toPinyinLine(tokens: ZhToken[]): string {
+  let output = '';
+  let hasPinyin = false;
+
+  for (const token of tokens) {
+    if (token.py) {
+      const lastCharacter = output.charAt(output.length - 1);
+      if (output && !output.endsWith(' ') && !OPENING_PUNCTUATION.has(lastCharacter)) {
+        output += ' ';
+      }
+      output += token.py.toLowerCase();
+      hasPinyin = true;
+      continue;
+    }
+
+    if (!hasPinyin || token.hz.length !== 1) continue;
+    const punctuation = PINYIN_PUNCTUATION[token.hz];
+    if (!punctuation) continue;
+
+    if (CLOSING_PUNCTUATION.has(punctuation)) {
+      output = output.trimEnd() + punctuation;
+    } else {
+      if (output && !output.endsWith(' ')) output += ' ';
+      output += punctuation;
+    }
+  }
+
+  return output.trim();
+}
+
 /** Mandarin tone names in learner-friendly Vietnamese. Index 0 = neutral. */
 export const MANDARIN_TONE_VI: Record<number, string> = {
   0: 'thanh nhẹ',
-  1: 'thanh 1 (cao – ngang)',
+  1: 'thanh 1 (cao - ngang)',
   2: 'thanh 2 (lên)',
   3: 'thanh 3 (xuống rồi lên)',
   4: 'thanh 4 (xuống mạnh)',
+};
+
+/** Mandarin tone names in learner-friendly English. Index 0 = neutral. */
+export const MANDARIN_TONE_EN: Record<number, string> = {
+  0: 'neutral tone',
+  1: 'tone 1 (high and level)',
+  2: 'tone 2 (rising)',
+  3: 'tone 3 (falling then rising)',
+  4: 'tone 4 (sharp falling)',
 };
 
 const TONE_MARKS: Record<string, string[]> = {

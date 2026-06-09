@@ -3,6 +3,7 @@ package com.chineseapp.controller;
 import com.chineseapp.dto.chat.ChatRequest;
 import com.chineseapp.dto.chat.ChatResponse;
 import com.chineseapp.dto.chat.ConversationDto;
+import com.chineseapp.dto.chat.CreateConversationRequest;
 import com.chineseapp.dto.chat.MessageDto;
 import com.chineseapp.dto.chat.VoiceTurnResponse;
 import com.chineseapp.exception.ApiException;
@@ -38,8 +39,9 @@ public class ConversationController {
     }
 
     @PostMapping
-    public ResponseEntity<ConversationDto> create(@AuthenticationPrincipal CurrentUser user) {
-        return ResponseEntity.ok(service.createConversation(user.id()));
+    public ResponseEntity<ConversationDto> create(@AuthenticationPrincipal CurrentUser user,
+                                                  @Valid @RequestBody CreateConversationRequest req) {
+        return ResponseEntity.ok(service.createConversation(user.id(), req));
     }
 
     @GetMapping

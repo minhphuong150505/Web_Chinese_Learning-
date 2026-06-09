@@ -8,7 +8,6 @@ import PronunciationTab from './features/pronunciation/PronunciationTab';
 import TranslationTab from './features/translation/TranslationTab';
 import WritingTab from './features/writing/WritingTab';
 import { useAuth } from './hooks/useAuth';
-import { getToken } from './lib/authStorage';
 
 const ENABLED: Record<TabName, boolean> = {
   chat: true,
@@ -17,20 +16,24 @@ const ENABLED: Record<TabName, boolean> = {
   write: true,
 };
 
+
 export default function App() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [tab, setTab] = useState<TabName>('chat');
 
+
+  if (isLoading) {
+    return (
+      <div className="grid min-h-screen place-items-center">
+        <Spinner size={28} />
+      </div>
+    );
+  }
+
   if (!user) {
-    if (getToken()) {
-      return (
-        <div className="grid min-h-screen place-items-center">
-          <Spinner size={28} />
-        </div>
-      );
-    }
     return <LoginScreen />;
   }
+
 
   return (
     <Layout>

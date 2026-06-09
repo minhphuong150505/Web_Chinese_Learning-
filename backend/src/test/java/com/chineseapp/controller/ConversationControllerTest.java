@@ -1,6 +1,8 @@
 package com.chineseapp.controller;
 
+import com.chineseapp.config.AuthProperties;
 import com.chineseapp.config.SecurityConfig;
+import com.chineseapp.dto.chat.ConversationDto;
 import com.chineseapp.dto.chat.MessageDto;
 import com.chineseapp.dto.chat.VoiceTurnResponse;
 import com.chineseapp.dto.pronunciation.PronunciationResponse;
@@ -26,7 +28,9 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -49,6 +53,48 @@ class ConversationControllerTest {
 
     @MockBean
     private UserRepository userRepository;
+
+    @MockBean
+    private AuthProperties authProperties;
+
+    @Test
+    @WithMockCurrentUser
+    void create_givenScenario_thenReturnsConversation() throws Exception {
+        UUID mockUserId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        Instant now = Instant.parse("2026-01-01T00:00:00Z");
+        when(service.createConversation(eq(mockUserId), any()))
+            .thenReturn(new ConversationDto(UUID.randomUUID(), "Hotel check-in", now, now));
+
+        mockMvc.perform(post("/api/conversations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"topicTitle":"Hotel","scenario":"Practice checking in and asking about breakfast."}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.title").value("Hotel check-in"));
+
+        verify(service).createConversation(
+            eq(mockUserId),
+            argThat(request ->
+                request.topicTitle().equals("Hotel")
+                    && request.scenario().contains("checking in")
+            )
+        );
+    }
+
+    @Test
+    @WithMockCurrentUser
+    void create_givenBlankTopic_thenReturnsValidationFailed() throws Exception {
+        mockMvc.perform(post("/api/conversations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"topicTitle":"","scenario":"Practice checking in at a hotel."}
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+
+        verifyNoInteractions(service);
+    }
 
     @Test
     @WithMockCurrentUser

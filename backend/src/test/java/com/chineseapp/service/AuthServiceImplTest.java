@@ -1,5 +1,6 @@
 package com.chineseapp.service;
 
+import com.chineseapp.config.AuthProperties;
 import com.chineseapp.dto.auth.AuthResponse;
 import com.chineseapp.entity.User;
 import com.chineseapp.exception.ApiException;
@@ -9,6 +10,8 @@ import com.chineseapp.security.GoogleTokenVerifier;
 import com.chineseapp.security.JwtService;
 import com.chineseapp.service.impl.AuthServiceImpl;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -27,13 +30,18 @@ class AuthServiceImplTest {
     private final GoogleTokenVerifier verifier = mock(GoogleTokenVerifier.class);
     private final JwtService jwtService = mock(JwtService.class);
     private final UserRepository userRepo = mock(UserRepository.class);
-    private final AuthServiceImpl service = new AuthServiceImpl(verifier, jwtService, userRepo);
+    private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+    private final AuthProperties authProperties = new AuthProperties();
+    private final AuthServiceImpl service = new AuthServiceImpl(
+        verifier, jwtService, userRepo, passwordEncoder, authProperties
+    );
 
     @Test
     void loginWithGoogle_givenNewUser_thenSavesUserAndReturnsToken() {
         GoogleProfile profile = new GoogleProfile("google-sub-1", "new@example.com", "New User");
         when(verifier.verify("id-token")).thenReturn(Optional.of(profile));
         when(userRepo.findByGoogleSub("google-sub-1")).thenReturn(Optional.empty());
+        when(userRepo.findByEmail("new@example.com")).thenReturn(Optional.empty());
         when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
         when(jwtService.issue(any(User.class))).thenReturn("app-jwt");
 
@@ -73,27 +81,52 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void loginWithMock_givenValidCredentialsAndNewUser_thenSavesUserAndReturnsToken() {
-        when(userRepo.findByGoogleSub("mock:mocktest")).thenReturn(Optional.empty());
-        when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(jwtService.issue(any(User.class))).thenReturn("app-jwt");
+    void loginWithGoogle_givenCredentialUserWithSameEmail_thenLinksGoogleAccount() {
+        User existing = new User(
+            UUID.randomUUID(), "linked@example.com", null, "password-hash", "Linked User", Instant.now()
+        );
+        GoogleProfile profile = new GoogleProfile("google-sub-linked", "LINKED@example.com", "Linked User");
+        when(verifier.verify("id-token")).thenReturn(Optional.of(profile));
+        when(userRepo.findByGoogleSub("google-sub-linked")).thenReturn(Optional.empty());
+        when(userRepo.findByEmail("linked@example.com")).thenReturn(Optional.of(existing));
+        when(userRepo.save(existing)).thenReturn(existing);
+        when(jwtService.issue(existing)).thenReturn("app-jwt");
 
-        AuthResponse response = service.loginWithMock(" MOCKTEST@example.com ", "mocktest123");
+        AuthResponse response = service.loginWithGoogle("id-token");
 
-        verify(userRepo).save(any(User.class));
+        verify(userRepo).save(existing);
+        assertThat(existing.getGoogleSub()).isEqualTo("google-sub-linked");
         assertThat(response.token()).isEqualTo("app-jwt");
-        assertThat(response.user().email()).isEqualTo("mocktest@example.com");
-        assertThat(response.user().displayName()).isEqualTo("Mock Test");
     }
 
     @Test
-    void loginWithMock_givenExistingUser_thenDoesNotSaveAndReturnsToken() {
-        User existing = new User(UUID.randomUUID(), "mocktest@example.com", "mock:mocktest",
-            "Mock Test", Instant.now());
-        when(userRepo.findByGoogleSub("mock:mocktest")).thenReturn(Optional.of(existing));
+    void loginWithGoogle_givenEmailLinkedToDifferentGoogleAccount_thenThrowsConflict() {
+        User existing = new User(
+            UUID.randomUUID(), "linked@example.com", "different-google-sub", "Linked User", Instant.now()
+        );
+        GoogleProfile profile = new GoogleProfile("google-sub-linked", "linked@example.com", "Linked User");
+        when(verifier.verify("id-token")).thenReturn(Optional.of(profile));
+        when(userRepo.findByGoogleSub("google-sub-linked")).thenReturn(Optional.empty());
+        when(userRepo.findByEmail("linked@example.com")).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.loginWithGoogle("id-token"))
+            .isInstanceOf(ApiException.class)
+            .satisfies(e -> assertThat(((ApiException) e).getStatus())
+                .isEqualTo(org.springframework.http.HttpStatus.CONFLICT));
+
+        verify(userRepo, never()).save(any(User.class));
+    }
+
+    @Test
+    void login_givenValidCredentials_thenReturnsToken() {
+        User existing = new User(
+            UUID.randomUUID(), "member@example.com", null, "password-hash", "Member", Instant.now()
+        );
+        when(userRepo.findByEmail("member@example.com")).thenReturn(Optional.of(existing));
+        when(passwordEncoder.matches("secret123", "password-hash")).thenReturn(true);
         when(jwtService.issue(existing)).thenReturn("app-jwt");
 
-        AuthResponse response = service.loginWithMock("mocktest@example.com", "mocktest123");
+        AuthResponse response = service.login(" MEMBER@example.com ", "secret123");
 
         verify(userRepo, never()).save(any(User.class));
         assertThat(response.token()).isEqualTo("app-jwt");
@@ -101,14 +134,78 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void loginWithMock_givenInvalidCredentials_thenThrowsUnauthorized() {
-        assertThatThrownBy(() -> service.loginWithMock("mocktest@example.com", "wrong-password"))
+    void login_givenInvalidCredentials_thenThrowsUnauthorized() {
+        when(userRepo.findByEmail("member@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.login("member@example.com", "wrong-password"))
             .isInstanceOf(ApiException.class)
             .satisfies(e -> assertThat(((ApiException) e).getStatus())
                 .isEqualTo(org.springframework.http.HttpStatus.UNAUTHORIZED));
 
-        verify(userRepo, never()).findByGoogleSub("mock:mocktest");
         verify(userRepo, never()).save(any(User.class));
+    }
+
+    @Test
+    void login_givenSingleUserEnabledAndMatchingCredentials_thenCreatesPrivateUser() {
+        authProperties.getSingleUser().setEnabled(true);
+        authProperties.getSingleUser().setUsername("privatelearner");
+        authProperties.getSingleUser().setPassword("private-password");
+        authProperties.getSingleUser().setDisplayName("Private Learner");
+        when(userRepo.findByEmail("privatelearner")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("private-password")).thenReturn("password-hash");
+        when(userRepo.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(jwtService.issue(any(User.class))).thenReturn("app-jwt");
+
+        AuthResponse response = service.login(" PrivateLearner ", "private-password");
+
+        assertThat(response.token()).isEqualTo("app-jwt");
+        assertThat(response.user().email()).isEqualTo("privatelearner");
+        assertThat(response.user().displayName()).isEqualTo("Private Learner");
+        verify(passwordEncoder).encode("private-password");
+        verify(userRepo).save(any(User.class));
+    }
+
+    @Test
+    void register_givenNewEmail_thenHashesPasswordAndReturnsToken() {
+        when(userRepo.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("secret123")).thenReturn("password-hash");
+        when(userRepo.saveAndFlush(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(jwtService.issue(any(User.class))).thenReturn("app-jwt");
+
+        AuthResponse response = service.register(" New Member ", " NEW@example.com ", "secret123");
+
+        assertThat(response.token()).isEqualTo("app-jwt");
+        assertThat(response.user().email()).isEqualTo("new@example.com");
+        assertThat(response.user().displayName()).isEqualTo("New Member");
+        verify(passwordEncoder).encode("secret123");
+    }
+
+    @Test
+    void register_givenExistingEmail_thenThrowsConflict() {
+        User existing = new User(
+            UUID.randomUUID(), "member@example.com", "google-sub", "Member", Instant.now()
+        );
+        when(userRepo.findByEmail("member@example.com")).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.register("Member", "member@example.com", "secret123"))
+            .isInstanceOf(ApiException.class)
+            .satisfies(e -> assertThat(((ApiException) e).getStatus())
+                .isEqualTo(org.springframework.http.HttpStatus.CONFLICT));
+
+        verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    void register_givenConcurrentDuplicate_thenThrowsConflict() {
+        when(userRepo.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("secret123")).thenReturn("password-hash");
+        when(userRepo.saveAndFlush(any(User.class)))
+            .thenThrow(new DataIntegrityViolationException("duplicate"));
+
+        assertThatThrownBy(() -> service.register("New", "new@example.com", "secret123"))
+            .isInstanceOf(ApiException.class)
+            .satisfies(e -> assertThat(((ApiException) e).getStatus())
+                .isEqualTo(org.springframework.http.HttpStatus.CONFLICT));
     }
 
     @Test

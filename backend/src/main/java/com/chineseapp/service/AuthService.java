@@ -9,7 +9,9 @@ public interface AuthService {
 
     AuthResponse loginWithGoogle(String idToken);
 
-    AuthResponse loginWithMock(String email, String password);
+    AuthResponse login(String email, String password);
+
+    AuthResponse register(String displayName, String email, String password);
 
     UserDto me(UUID userId);
 }

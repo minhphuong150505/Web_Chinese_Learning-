@@ -33,6 +33,11 @@ public class GoogleTokenVerifier {
                 return Optional.empty();
             }
             GoogleIdToken.Payload payload = token.getPayload();
+            if (!Boolean.TRUE.equals(payload.getEmailVerified())
+                    || payload.getEmail() == null
+                    || payload.getEmail().isBlank()) {
+                return Optional.empty();
+            }
             return Optional.of(new GoogleProfile(
                 payload.getSubject(),
                 payload.getEmail(),

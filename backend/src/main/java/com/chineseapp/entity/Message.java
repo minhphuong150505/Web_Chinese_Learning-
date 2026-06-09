@@ -67,6 +67,10 @@ public class Message {
         return audioPath;
     }
 
+    public void setAudioPath(String audioPath) {
+        this.audioPath = audioPath;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }

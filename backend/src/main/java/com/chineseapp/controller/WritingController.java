@@ -1,7 +1,9 @@
 package com.chineseapp.controller;
 
+import com.chineseapp.dto.writing.CreateWritingPromptRequest;
 import com.chineseapp.dto.writing.WritingFeedbackRequest;
 import com.chineseapp.dto.writing.WritingFeedbackResponse;
+import com.chineseapp.dto.writing.WritingPromptResponse;
 import com.chineseapp.security.CurrentUser;
 import com.chineseapp.service.WritingFeedbackService;
 import jakarta.validation.Valid;
@@ -22,6 +24,13 @@ public class WritingController {
 
     public WritingController(WritingFeedbackService service) {
         this.service = service;
+    }
+
+    @PostMapping("/prompts")
+    public ResponseEntity<WritingPromptResponse> createPrompt(@AuthenticationPrincipal CurrentUser user,
+                                                              @Valid @RequestBody(required = false)
+                                                              CreateWritingPromptRequest req) {
+        return ResponseEntity.ok(service.createPrompt(req));
     }
 
     @PostMapping("/feedback")

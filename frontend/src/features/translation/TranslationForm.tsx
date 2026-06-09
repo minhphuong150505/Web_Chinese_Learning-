@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Icon from '../../components/Icon';
 import Spinner from '../../components/Spinner';
 import { useTranslation } from '../../hooks/useTranslation';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import type { Direction } from '../../types/translation';
 
 const DIRECTIONS: Array<{ id: Direction; label: string }> = [
@@ -10,6 +11,7 @@ const DIRECTIONS: Array<{ id: Direction; label: string }> = [
 ];
 
 export default function TranslationForm() {
+  const { text: uiText } = useLanguage();
   const [direction, setDirection] = useState<Direction>('VI_TO_ZH');
   const [text, setText] = useState('');
   const translate = useTranslation();
@@ -48,7 +50,8 @@ export default function TranslationForm() {
             type="button"
             onClick={swap}
             className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
-            title="Swap direction"
+            title={uiText('Đổi chiều dịch', 'Swap direction')}
+            aria-label={uiText('Đổi chiều dịch', 'Swap direction')}
           >
             <Icon name="swap" size={16} />
           </button>
@@ -56,7 +59,11 @@ export default function TranslationForm() {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={direction === 'VI_TO_ZH' ? 'Type in Vietnamese…' : 'Type in Chinese…'}
+          placeholder={
+            direction === 'VI_TO_ZH'
+              ? uiText('Nhập tiếng Việt...', 'Type in Vietnamese...')
+              : uiText('Nhập tiếng Trung...', 'Type in Chinese...')
+          }
           rows={8}
           className="scroll min-h-[180px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
         />
@@ -67,18 +74,26 @@ export default function TranslationForm() {
           className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-violet-600 px-5 py-2.5 text-[14px] font-semibold text-white shadow-accent transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {translate.isPending && <Spinner size={16} />}
-          {translate.isPending ? 'Translating…' : 'Translate'}
+          {translate.isPending
+            ? uiText('Đang dịch...', 'Translating...')
+            : uiText('Dịch', 'Translate')}
         </button>
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Result</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          {uiText('Kết quả', 'Result')}
+        </span>
         <div className="scroll min-h-[180px] flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] leading-relaxed text-slate-900">
-          {translate.isPending && <span className="text-slate-400">Translating…</span>}
+          {translate.isPending && (
+            <span className="text-slate-400">{uiText('Đang dịch...', 'Translating...')}</span>
+          )}
           {translate.isError && <span className="text-red-600">{(translate.error as Error).message}</span>}
           {translate.data && <span>{translate.data.translation}</span>}
           {!translate.isPending && !translate.data && !translate.isError && (
-            <span className="text-slate-400">Your translation will appear here.</span>
+            <span className="text-slate-400">
+              {uiText('Bản dịch sẽ xuất hiện tại đây.', 'Your translation will appear here.')}
+            </span>
           )}
         </div>
       </div>

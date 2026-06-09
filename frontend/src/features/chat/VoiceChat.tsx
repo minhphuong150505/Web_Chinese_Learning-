@@ -4,6 +4,7 @@ import Icon from '../../components/Icon';
 import Spinner from '../../components/Spinner';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 import { useVoiceTurn } from '../../hooks/useVoiceTurn';
+import { useLanguage, type Language } from '../../i18n/LanguageProvider';
 import { toZhTokens } from '../../lib/zh';
 import SyllableBreakdown, { toneTips } from '../pronunciation/SyllableBreakdown';
 import type { MessageDto, VoiceTurnResponse } from '../../types/chat';
@@ -12,15 +13,16 @@ type VoicePhase = 'ready' | 'listening' | 'processing' | 'speaking';
 
 interface VoiceChatProps {
   conversationId: string;
+  conversationTitle: string;
   messages: MessageDto[];
   onClose: () => void;
 }
 
-const PHASE_LABEL: Record<VoicePhase, string> = {
-  ready: 'Đến lượt bạn',
-  listening: 'Đang nghe...',
-  processing: 'Đang phân tích câu nói...',
-  speaking: 'AI đang nói',
+const PHASE_LABEL: Record<VoicePhase, Record<Language, string>> = {
+  ready: { vi: 'Đến lượt bạn', en: 'Your turn' },
+  listening: { vi: 'Đang nghe...', en: 'Listening...' },
+  processing: { vi: 'Đang phân tích câu nói...', en: 'Analyzing your speech...' },
+  speaking: { vi: 'AI đang nói', en: 'AI is speaking' },
 };
 
 function scoreBand(score: number) {
@@ -49,19 +51,24 @@ function Metric({ label, value }: { label: string; value: number }) {
 }
 
 function TurnAssessment({ turn }: { turn: VoiceTurnResponse }) {
+  const { language, text } = useLanguage();
   const words = turn.pronunciation.words.filter((word) => word.word.trim());
   const wordAverage =
     words.length > 0
       ? words.reduce((sum, word) => sum + word.accuracyScore, 0) / words.length
       : turn.pronunciation.accuracy;
-  const tips = toneTips(words);
+  const tips = toneTips(words, language);
 
   return (
     <aside className="scroll w-full flex-none overflow-visible border-t border-slate-200 bg-slate-50/80 px-5 pb-20 pt-5 lg:h-full lg:w-[390px] lg:overflow-y-auto lg:border-l lg:border-t-0 lg:px-6 lg:py-5">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-[11px] font-bold uppercase text-slate-400">Đánh giá lượt nói</div>
-          <div className="mt-1 text-[14px] font-bold text-slate-900">Kết quả mới nhất</div>
+          <div className="text-[11px] font-bold uppercase text-slate-400">
+            {text('Đánh giá lượt nói', 'Speaking assessment')}
+          </div>
+          <div className="mt-1 text-[14px] font-bold text-slate-900">
+            {text('Kết quả mới nhất', 'Latest result')}
+          </div>
         </div>
         <div className={'text-[30px] font-extrabold ' + scoreBand(turn.pronunciation.pronScore)}>
           {Math.round(turn.pronunciation.pronScore)}
@@ -69,22 +76,26 @@ function TurnAssessment({ turn }: { turn: VoiceTurnResponse }) {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Metric label="Phát âm" value={turn.pronunciation.pronScore} />
-        <Metric label="Ngữ cảnh" value={turn.contextScore} />
-        <Metric label="Chính xác" value={turn.pronunciation.accuracy} />
-        <Metric label="Trôi chảy" value={turn.pronunciation.fluency} />
-        <Metric label="Ngữ pháp" value={turn.grammarScore} />
-        <Metric label="Từng từ" value={wordAverage} />
+        <Metric label={text('Phát âm', 'Pronunciation')} value={turn.pronunciation.pronScore} />
+        <Metric label={text('Ngữ cảnh', 'Context')} value={turn.contextScore} />
+        <Metric label={text('Chính xác', 'Accuracy')} value={turn.pronunciation.accuracy} />
+        <Metric label={text('Trôi chảy', 'Fluency')} value={turn.pronunciation.fluency} />
+        <Metric label={text('Ngữ pháp', 'Grammar')} value={turn.grammarScore} />
+        <Metric label={text('Từng từ', 'Per word')} value={wordAverage} />
       </div>
 
       <div className="mt-5 border-t border-slate-200 pt-4">
-        <div className="text-[11px] font-bold uppercase text-slate-400">Nhận xét</div>
+        <div className="text-[11px] font-bold uppercase text-slate-400">
+          {text('Nhận xét', 'Feedback')}
+        </div>
         <p className="mt-2 text-[13px] font-medium leading-6 text-slate-700">{turn.feedback}</p>
       </div>
 
       {turn.suggestedReply && (
         <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3">
-          <div className="text-[11px] font-bold uppercase text-violet-500">Cách nói tự nhiên hơn</div>
+          <div className="text-[11px] font-bold uppercase text-violet-500">
+            {text('Cách nói tự nhiên hơn', 'A more natural reply')}
+          </div>
           <Hanzi
             tokens={toZhTokens(turn.suggestedReply)}
             className="mt-1 block text-[19px] text-slate-900"
@@ -95,7 +106,7 @@ function TurnAssessment({ turn }: { turn: VoiceTurnResponse }) {
       {words.length > 0 && (
         <div className="mt-5 border-t border-slate-200 pt-4">
           <div className="text-[11px] font-bold uppercase text-slate-400">
-            Từng âm tiết · thanh điệu
+            {text('Từng âm tiết · thanh điệu', 'Syllables · tones')}
           </div>
           <div className="mt-3">
             <SyllableBreakdown words={words} />
@@ -105,7 +116,9 @@ function TurnAssessment({ turn }: { turn: VoiceTurnResponse }) {
 
       {tips.length > 0 && (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-          <div className="text-[11px] font-bold uppercase text-amber-600">Âm tiết cần luyện thêm</div>
+          <div className="text-[11px] font-bold uppercase text-amber-600">
+            {text('Âm tiết cần luyện thêm', 'Syllables to practice')}
+          </div>
           <ul className="mt-1.5 space-y-1 text-[12.5px] font-medium leading-5 text-amber-900">
             {tips.map((tip, index) => (
               <li key={index}>• {tip}</li>
@@ -117,7 +130,8 @@ function TurnAssessment({ turn }: { turn: VoiceTurnResponse }) {
   );
 }
 
-export default function VoiceChat({ conversationId, messages, onClose }: VoiceChatProps) {
+export default function VoiceChat({ conversationId, conversationTitle, messages, onClose }: VoiceChatProps) {
+  const { language, text } = useLanguage();
   const recorder = useAudioRecorder();
   const voiceTurn = useVoiceTurn(conversationId);
   const [phase, setPhase] = useState<VoicePhase>('ready');
@@ -138,7 +152,7 @@ export default function VoiceChat({ conversationId, messages, onClose }: VoiceCh
       ? '我在听。'
       : lastTurn?.assistantMessage.content ??
         latestAssistant?.content ??
-        '你好，欢迎光临！你想吃点什么？';
+        '你好，我们开始练习吧。你想先说什么？';
 
   const clearAutoStop = useCallback(() => {
     if (autoStopRef.current !== null) {
@@ -204,15 +218,23 @@ export default function VoiceChat({ conversationId, messages, onClose }: VoiceCh
     setLocalError(null);
     try {
       const blob = await recorder.stop();
-      if (blob.size === 0) throw new Error('Không thu được âm thanh. Vui lòng thử lại.');
+      if (blob.size === 0) {
+        throw new Error(
+          text('Không thu được âm thanh. Vui lòng thử lại.', 'No audio was recorded. Please try again.'),
+        );
+      }
       const result = await voiceTurn.mutateAsync(blob);
       setLastTurn(result);
       await playAssistant(result);
     } catch (error) {
       setPhase('ready');
-      setLocalError(error instanceof Error ? error.message : 'Không thể xử lý lượt nói.');
+      setLocalError(
+        error instanceof Error
+          ? error.message
+          : text('Không thể xử lý lượt nói.', 'Could not process your speech.'),
+      );
     }
-  }, [clearAutoStop, playAssistant, recorder, voiceTurn]);
+  }, [clearAutoStop, playAssistant, recorder, text, voiceTurn]);
 
   stopRecordingRef.current = stopRecording;
 
@@ -265,13 +287,17 @@ export default function VoiceChat({ conversationId, messages, onClose }: VoiceCh
             <Icon name="spark" size={20} />
           </div>
           <div className="min-w-0 leading-tight">
-            <div className="truncate text-[16px] font-extrabold">AI Tutor · 点菜</div>
-            <div className="mt-1 text-[12px] font-semibold text-slate-400">{PHASE_LABEL[phase]}</div>
+            <div className="truncate text-[16px] font-extrabold">
+              {text('Trợ giảng AI', 'AI Tutor')} · {conversationTitle}
+            </div>
+            <div className="mt-1 text-[12px] font-semibold text-slate-400">
+              {PHASE_LABEL[phase][language]}
+            </div>
           </div>
         </div>
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] font-bold text-emerald-700">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          Live voice
+          {text('Giọng nói trực tiếp', 'Live voice')}
         </div>
       </header>
 
@@ -291,7 +317,11 @@ export default function VoiceChat({ conversationId, messages, onClose }: VoiceCh
                     : 'border-violet-200 bg-white text-violet-600 hover:bg-violet-50') +
                 ' disabled:cursor-wait'
               }
-              aria-label={phase === 'listening' ? 'Dừng ghi âm' : 'Bắt đầu ghi âm'}
+              aria-label={
+                phase === 'listening'
+                  ? text('Dừng ghi âm', 'Stop recording')
+                  : text('Bắt đầu ghi âm', 'Start recording')
+              }
             >
               <span
                 className={
@@ -313,8 +343,8 @@ export default function VoiceChat({ conversationId, messages, onClose }: VoiceCh
             <div className="mt-7 min-h-[116px] max-w-[720px] text-center">
               <div className="text-[12px] font-bold uppercase text-slate-400">
                 {phase === 'listening'
-                  ? `Đang ghi âm 0:${elapsed.toString().padStart(2, '0')}`
-                  : PHASE_LABEL[phase]}
+                  ? `${text('Đang ghi âm', 'Recording')} 0:${elapsed.toString().padStart(2, '0')}`
+                  : PHASE_LABEL[phase][language]}
               </div>
               <Hanzi
                 tokens={toZhTokens(activeText)}
@@ -322,7 +352,8 @@ export default function VoiceChat({ conversationId, messages, onClose }: VoiceCh
               />
               {lastTurn && phase !== 'listening' && (
                 <div className="mt-2 text-[13px] font-semibold text-slate-400">
-                  Bạn nói: <span className="font-zh text-slate-600">{lastTurn.userMessage.content}</span>
+                  {text('Bạn nói', 'You said')}:{' '}
+                  <span className="font-zh text-slate-600">{lastTurn.userMessage.content}</span>
                 </div>
               )}
             </div>
@@ -339,12 +370,14 @@ export default function VoiceChat({ conversationId, messages, onClose }: VoiceCh
               type="button"
               onClick={toggleSound}
               className="tip flex w-16 flex-col items-center gap-2 text-[12px] font-bold text-slate-500"
-              data-tip={soundOn ? 'Tắt âm thanh' : 'Bật âm thanh'}
+              data-tip={
+                soundOn ? text('Tắt âm thanh', 'Mute') : text('Bật âm thanh', 'Turn sound on')
+              }
             >
               <span className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white transition hover:bg-slate-50">
                 <Icon name={soundOn ? 'volume' : 'mute'} size={20} />
               </span>
-              Sound
+              {text('Âm thanh', 'Sound')}
             </button>
             <button
               type="button"
@@ -354,18 +387,18 @@ export default function VoiceChat({ conversationId, messages, onClose }: VoiceCh
               <span className="grid h-16 w-16 place-items-center rounded-full bg-red-600 text-white shadow-[0_12px_28px_-10px_rgba(220,38,38,.55)] transition hover:bg-red-700">
                 <Icon name="phoneOff" size={25} />
               </span>
-              End
+              {text('Kết thúc', 'End')}
             </button>
             <button
               type="button"
               onClick={endCall}
               className="tip flex w-16 flex-col items-center gap-2 text-[12px] font-bold text-slate-500"
-              data-tip="Chuyển sang nhập văn bản"
+              data-tip={text('Chuyển sang nhập văn bản', 'Switch to text input')}
             >
               <span className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white transition hover:bg-slate-50">
                 <Icon name="keyboard" size={20} />
               </span>
-              Type
+              {text('Nhập chữ', 'Type')}
             </button>
           </div>
         </main>

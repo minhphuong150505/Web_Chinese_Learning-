@@ -18,6 +18,8 @@ server:
   port: 8080
 
 app:
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,https://kanhim0105.com,https://www.kanhim0105.com}
   llm:
     provider: ${LLM_PROVIDER:deepseek}
     base-url: ${LLM_BASE_URL:https://api.deepseek.com}
@@ -26,7 +28,7 @@ app:
     reasoning-model: ${LLM_REASONING_MODEL:deepseek-v4-pro}
     timeout-seconds: ${LLM_TIMEOUT_SECONDS:60}
   tts:
-    base-url: ${TTS_BASE_URL:http://tts-service:8001}
+    base-url: ${TTS_BASE_URL:http://localhost:8001}
     voice: ${TTS_VOICE:zh-CN-XiaoxiaoNeural}
     storage-dir: ${AUDIO_STORAGE_DIR:/data/audio}
   azure-speech:
@@ -45,6 +47,11 @@ app:
       expiry-days: ${JWT_EXPIRY_DAYS:7}
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
+    single-user:
+      enabled: ${SINGLE_USER_ENABLED:false}
+      username: ${SINGLE_USER_USERNAME:}
+      password: ${SINGLE_USER_PASSWORD:}
+      display-name: ${SINGLE_USER_DISPLAY_NAME:Learner}
 
 logging:
   level:

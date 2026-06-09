@@ -1,6 +1,18 @@
 import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
-import type { WritingFeedbackRequest, WritingFeedbackResponse } from '../types/writing';
+import type {
+  CreateWritingPromptRequest,
+  WritingFeedbackRequest,
+  WritingFeedbackResponse,
+  WritingPromptResponse,
+} from '../types/writing';
+
+export function useWritingPrompt() {
+  return useMutation({
+    mutationFn: (request: CreateWritingPromptRequest) =>
+      apiClient.post<WritingPromptResponse>('/writing/prompts', request).then((r) => r.data),
+  });
+}
 
 export function useWritingFeedback() {
   return useMutation({

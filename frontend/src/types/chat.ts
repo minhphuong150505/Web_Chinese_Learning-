@@ -17,6 +17,11 @@ export interface ConversationDto {
   updatedAt: string;
 }
 
+export interface CreateConversationRequest {
+  topicTitle: string;
+  scenario: string;
+}
+
 export interface ChatResponse {
   userMessage: MessageDto;
   assistantMessage: MessageDto;

@@ -1,5 +1,6 @@
 package com.chineseapp.controller;
 
+import com.chineseapp.config.AuthProperties;
 import com.chineseapp.config.SecurityConfig;
 import com.chineseapp.dto.pronunciation.PronunciationResponse;
 import com.chineseapp.dto.pronunciation.WordScore;
@@ -45,6 +46,9 @@ class PronunciationControllerTest {
 
     @MockBean
     private UserRepository userRepository;
+
+    @MockBean
+    private AuthProperties authProperties;
 
     @Test
     @WithMockCurrentUser

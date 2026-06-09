@@ -16,12 +16,19 @@ public class AuthProperties {
     @Valid
     private final Google google = new Google();
 
+    @Valid
+    private final SingleUser singleUser = new SingleUser();
+
     public Jwt getJwt() {
         return jwt;
     }
 
     public Google getGoogle() {
         return google;
+    }
+
+    public SingleUser getSingleUser() {
+        return singleUser;
     }
 
     public static class Jwt {
@@ -60,6 +67,49 @@ public class AuthProperties {
 
         public void setClientId(String clientId) {
             this.clientId = clientId;
+        }
+    }
+
+    public static class SingleUser {
+
+        private boolean enabled = false;
+
+        private String username = "";
+
+        private String password = "";
+
+        private String displayName = "Learner";
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public void setDisplayName(String displayName) {
+            this.displayName = displayName;
         }
     }
 }

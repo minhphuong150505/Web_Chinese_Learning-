@@ -1,4 +1,5 @@
-import { MANDARIN_TONE_VI, numericPinyin } from '../../lib/zh';
+import type { Language } from '../../i18n/LanguageProvider';
+import { MANDARIN_TONE_EN, MANDARIN_TONE_VI, numericPinyin } from '../../lib/zh';
 import type { WordScore } from '../../types/pronunciation';
 
 // We deliberately show only signals we can stand behind: Azure's per-syllable
@@ -43,14 +44,19 @@ function flatten(words: WordScore[]): SyllableView[] {
 }
 
 /** Tips anchored on the target tone + Azure accuracy — both trustworthy signals. */
-export function toneTips(words: WordScore[]): string[] {
+export function toneTips(words: WordScore[], language: Language = 'vi'): string[] {
   const tips: string[] = [];
+  const toneNames = language === 'vi' ? MANDARIN_TONE_VI : MANDARIN_TONE_EN;
   for (const s of flatten(words)) {
     if (s.accuracy >= ACC_WEAK) continue;
     tips.push(
-      `“${s.pinyin}”: cần đọc ${MANDARIN_TONE_VI[s.expectedTone]} — âm tiết này mới đạt ${Math.round(
-        s.accuracy,
-      )}/100, luyện thêm.`,
+      language === 'vi'
+        ? `“${s.pinyin}”: cần đọc ${toneNames[s.expectedTone]} - âm tiết này mới đạt ${Math.round(
+            s.accuracy,
+          )}/100, luyện thêm.`
+        : `“${s.pinyin}”: use ${toneNames[s.expectedTone]} - this syllable scored ${Math.round(
+            s.accuracy,
+          )}/100 and needs more practice.`,
     );
   }
   return tips;

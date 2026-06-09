@@ -2,6 +2,9 @@ package com.chineseapp.service;
 
 import com.chineseapp.client.LlmClient;
 import com.chineseapp.dto.chat.ChatResponse;
+import com.chineseapp.dto.chat.ConversationDto;
+import com.chineseapp.dto.chat.CreateConversationRequest;
+import com.chineseapp.dto.chat.MessageDto;
 import com.chineseapp.dto.chat.VoiceTurnResponse;
 import com.chineseapp.dto.pronunciation.PronunciationResponse;
 import com.chineseapp.entity.Conversation;
@@ -32,6 +35,101 @@ import static org.mockito.Mockito.when;
 class ConversationServiceImplTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
+
+    @Test
+    void createConversation_givenScenario_thenPlansContextAndOpeningMessage() {
+        ConversationRepository convRepo = mock(ConversationRepository.class);
+        MessageRepository msgRepo = mock(MessageRepository.class);
+        LlmClient llm = mock(LlmClient.class);
+        TtsService tts = mock(TtsService.class);
+        ConversationService service = new ConversationServiceImpl(
+            convRepo, msgRepo, llm, tts, mock(PronunciationService.class), new ObjectMapper()
+        );
+        when(convRepo.save(any(Conversation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(msgRepo.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(llm.chat(any())).thenReturn("""
+            {"systemContext":"Role-play as a hotel receptionist. Help the learner check in.",
+             "openingMessage":"您好，欢迎来到我们酒店。您有预订吗？"}
+            """);
+        when(tts.synthesize("您好，欢迎来到我们酒店。您有预订吗？")).thenReturn("hotel.mp3");
+
+        ConversationDto dto = service.createConversation(
+            USER_ID,
+            new CreateConversationRequest("Hotel check-in", "I want to practice checking in and asking about breakfast.")
+        );
+
+        assertThat(dto.title()).isEqualTo("Hotel check-in");
+
+        ArgumentCaptor<Conversation> conversationCaptor = ArgumentCaptor.forClass(Conversation.class);
+        verify(convRepo).save(conversationCaptor.capture());
+        assertThat(conversationCaptor.getValue().getUserId()).isEqualTo(USER_ID);
+
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(msgRepo, org.mockito.Mockito.times(2)).save(messageCaptor.capture());
+        List<Message> messages = messageCaptor.getAllValues();
+        assertThat(messages).extracting(Message::getRole).containsExactly("system", "assistant");
+        assertThat(messages.get(0).getContent()).contains("hotel receptionist");
+        assertThat(messages.get(0).getContent()).contains("checking in");
+        assertThat(messages.get(1).getContent()).isEqualTo("您好，欢迎来到我们酒店。您有预订吗？");
+        assertThat(messages.get(1).getAudioPath()).isEqualTo("hotel.mp3");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<LlmClient.LlmMessage>> llmCaptor = ArgumentCaptor.forClass(List.class);
+        verify(llm).chat(llmCaptor.capture());
+        assertThat(llmCaptor.getValue().get(1).content()).contains("Hotel check-in");
+        assertThat(llmCaptor.getValue().get(1).content()).contains("checking in");
+        assertThat(llmCaptor.getValue())
+            .extracting(LlmClient.LlmMessage::content)
+            .allSatisfy(content -> assertThat(content).doesNotContainIgnoringCase("restaurant"));
+    }
+
+    @Test
+    void createConversation_givenMissingRequest_thenDoesNotFallBackToRestaurant() {
+        ConversationService service = new ConversationServiceImpl(
+            mock(ConversationRepository.class),
+            mock(MessageRepository.class),
+            mock(LlmClient.class),
+            mock(TtsService.class),
+            mock(PronunciationService.class),
+            new ObjectMapper()
+        );
+
+        assertThatThrownBy(() -> service.createConversation(USER_ID, null))
+            .isInstanceOf(ApiException.class)
+            .extracting("status")
+            .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void listMessages_hidesSystemContextFromClient() {
+        ConversationRepository convRepo = mock(ConversationRepository.class);
+        MessageRepository msgRepo = mock(MessageRepository.class);
+        TtsService tts = mock(TtsService.class);
+        ConversationService service = new ConversationServiceImpl(
+            convRepo, msgRepo, mock(LlmClient.class), tts, mock(PronunciationService.class),
+            new ObjectMapper()
+        );
+        Conversation conversation = new Conversation(
+            UUID.randomUUID(),
+            USER_ID,
+            "Hotel check-in",
+            Instant.parse("2026-01-01T00:00:00Z"),
+            Instant.parse("2026-01-01T00:00:00Z")
+        );
+        when(convRepo.findByIdAndUserId(conversation.getId(), USER_ID)).thenReturn(Optional.of(conversation));
+        when(msgRepo.findByConversationOrderByCreatedAtAsc(conversation)).thenReturn(List.of(
+            new Message(UUID.randomUUID(), conversation, "system", "private scenario", null, Instant.parse("2026-01-01T00:00:00Z")),
+            new Message(UUID.randomUUID(), conversation, "assistant", "您好！", null, Instant.parse("2026-01-01T00:00:01Z")),
+            new Message(UUID.randomUUID(), conversation, "user", "你好", null, Instant.parse("2026-01-01T00:00:02Z"))
+        ));
+        when(tts.synthesize("您好！")).thenReturn("recovered.mp3");
+
+        List<MessageDto> messages = service.listMessages(USER_ID, conversation.getId());
+
+        assertThat(messages).extracting(MessageDto::role).containsExactly("assistant", "user");
+        assertThat(messages).extracting(MessageDto::content).doesNotContain("private scenario");
+        assertThat(messages.get(0).audioUrl()).isEqualTo("/api/audio/recovered.mp3");
+    }
 
     @Test
     void sendMessage_givenConversation_thenSavesUserAndAssistantMessages() {
@@ -227,5 +325,49 @@ class ConversationServiceImplTest {
         assertThat(response.feedback()).contains("đúng ngữ cảnh");
         verify(pronunciation).assessUnscripted(USER_ID, audio);
         verify(convRepo).save(conversation);
+    }
+
+    @Test
+    void sendVoiceTurn_givenMalformedAssessmentJson_thenKeepsConversationWorking() {
+        ConversationRepository convRepo = mock(ConversationRepository.class);
+        MessageRepository msgRepo = mock(MessageRepository.class);
+        LlmClient llm = mock(LlmClient.class);
+        TtsService tts = mock(TtsService.class);
+        PronunciationService pronunciation = mock(PronunciationService.class);
+        ConversationService service = new ConversationServiceImpl(
+            convRepo, msgRepo, llm, tts, pronunciation, new ObjectMapper()
+        );
+        Conversation conversation = new Conversation(
+            UUID.randomUUID(),
+            USER_ID,
+            "Tea practice",
+            Instant.parse("2026-01-01T00:00:00Z"),
+            Instant.parse("2026-01-01T00:00:00Z")
+        );
+        MockMultipartFile audio = new MockMultipartFile(
+            "audio", "voice-turn.webm", "audio/webm", new byte[]{1, 2, 3}
+        );
+        PronunciationResponse assessment = new PronunciationResponse(
+            UUID.randomUUID(), "我要一杯茶。", "我要一杯茶。", 90, 88, null, null, 89,
+            false, List.of(), Instant.parse("2026-01-01T00:00:00Z")
+        );
+
+        when(convRepo.findByIdAndUserId(conversation.getId(), USER_ID)).thenReturn(Optional.of(conversation));
+        when(pronunciation.assessUnscripted(USER_ID, audio)).thenReturn(assessment);
+        when(msgRepo.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(msgRepo.findByConversationOrderByCreatedAtAsc(conversation))
+            .thenReturn(List.of(new Message(
+                UUID.randomUUID(), conversation, "user", "我要一杯茶。", null, Instant.now()
+            )));
+        when(llm.chat(any())).thenReturn(
+            "{\"reply\":\"好的，请稍等。\",\"contextScore\":95,\"grammarScore\":"
+        );
+        when(tts.synthesize("好的，请稍等。")).thenReturn("fallback.mp3");
+
+        VoiceTurnResponse response = service.sendVoiceTurn(USER_ID, conversation.getId(), audio);
+
+        assertThat(response.assistantMessage().content()).isEqualTo("好的，请稍等。");
+        assertThat(response.assistantMessage().audioUrl()).isEqualTo("/api/audio/fallback.mp3");
+        assertThat(response.contextScore()).isEqualTo(70);
     }
 }

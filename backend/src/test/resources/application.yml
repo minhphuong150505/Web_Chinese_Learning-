@@ -18,6 +18,8 @@ server:
   port: 8080
 
 app:
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,https://kanhim0105.com,https://www.kanhim0105.com}
   llm:
     provider: ${LLM_PROVIDER:deepseek}
     base-url: ${LLM_BASE_URL:https://api.deepseek.com}

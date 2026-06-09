@@ -4,7 +4,7 @@
 
 ## 1. Sản phẩm là gì
 
-Một web app **chạy local, học tiếng Trung (Mandarin)**, dành cho nhiều người dùng (public, mỗi người đăng nhập Google và chỉ thấy dữ liệu của riêng mình). Không phải hệ thống production hoành tráng — ưu tiên trải nghiệm học tập gọn, nhanh, rõ ràng.
+Một web app **chạy local, học tiếng Trung (Mandarin)**, dành cho nhiều người dùng (public, mỗi người đăng nhập bằng email/mật khẩu hoặc Google và chỉ thấy dữ liệu của riêng mình). Không phải hệ thống production hoành tráng — ưu tiên trải nghiệm học tập gọn, nhanh, rõ ràng.
 
 Ba tính năng chính, theo thứ tự ưu tiên:
 
@@ -37,7 +37,7 @@ Ba tính năng chính, theo thứ tự ưu tiên:
 ## 3. Các màn hình chi tiết
 
 ### 3.1 Login Screen
-- Card căn giữa màn hình: tên app + nút "Sign in with Google" (component `<GoogleLogin>`).
+- Card căn giữa màn hình: tên app + form đăng nhập/đăng ký email và nút Google (component `<GoogleLogin>`).
 - Hiện lỗi inline nếu đăng nhập thất bại.
 - Không có form email/password (chỉ Google).
 

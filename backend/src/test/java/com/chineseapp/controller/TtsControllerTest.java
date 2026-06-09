@@ -1,5 +1,6 @@
 package com.chineseapp.controller;
 
+import com.chineseapp.config.AuthProperties;
 import com.chineseapp.config.SecurityConfig;
 import com.chineseapp.config.TtsProperties;
 import com.chineseapp.exception.GlobalExceptionHandler;
@@ -39,6 +40,9 @@ class TtsControllerTest {
 
     @MockBean
     private UserRepository userRepository;
+
+    @MockBean
+    private AuthProperties authProperties;
 
     @TempDir
     private Path tempDir;

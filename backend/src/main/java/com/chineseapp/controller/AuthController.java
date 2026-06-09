@@ -2,7 +2,8 @@ package com.chineseapp.controller;
 
 import com.chineseapp.dto.auth.AuthResponse;
 import com.chineseapp.dto.auth.GoogleLoginRequest;
-import com.chineseapp.dto.auth.MockLoginRequest;
+import com.chineseapp.dto.auth.LoginRequest;
+import com.chineseapp.dto.auth.RegisterRequest;
 import com.chineseapp.dto.auth.UserDto;
 import com.chineseapp.security.CurrentUser;
 import com.chineseapp.service.AuthService;
@@ -30,9 +31,14 @@ public class AuthController {
         return ResponseEntity.ok(service.loginWithGoogle(req.idToken()));
     }
 
-    @PostMapping("/mock")
-    public ResponseEntity<AuthResponse> mock(@Valid @RequestBody MockLoginRequest req) {
-        return ResponseEntity.ok(service.loginWithMock(req.email(), req.password()));
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest req) {
+        return ResponseEntity.ok(service.login(req.email(), req.password()));
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest req) {
+        return ResponseEntity.ok(service.register(req.displayName(), req.email(), req.password()));
     }
 
     @GetMapping("/me")

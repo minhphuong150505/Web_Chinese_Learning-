@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLanguage } from '../i18n/LanguageProvider';
 
 interface BrowserSpeechRecognitionAlternative {
   transcript: string;
@@ -51,6 +52,7 @@ interface SpeechRecognitionOptions {
 }
 
 export function useSpeechRecognition({ onTranscript }: SpeechRecognitionOptions) {
+  const { text } = useLanguage();
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const onTranscriptRef = useRef(onTranscript);
   const [isListening, setIsListening] = useState(false);
@@ -82,9 +84,24 @@ export function useSpeechRecognition({ onTranscript }: SpeechRecognitionOptions)
   }, []);
 
   const start = useCallback(() => {
+    if (!window.isSecureContext) {
+      setError(
+        text(
+          'Micro chỉ hoạt động qua HTTPS. Hãy mở trang bằng địa chỉ https:// rồi thử lại.',
+          'The microphone only works over HTTPS. Open the site using https:// and try again.',
+        ),
+      );
+      return;
+    }
+
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
-      setError('Voice input requires Chrome or Edge.');
+      setError(
+        text(
+          'Nhập bằng giọng nói cần Chrome hoặc Edge.',
+          'Voice input requires Chrome or Edge.',
+        ),
+      );
       return;
     }
 
@@ -110,10 +127,19 @@ export function useSpeechRecognition({ onTranscript }: SpeechRecognitionOptions)
     recognition.onerror = (event) => {
       const message =
         event.error === 'not-allowed'
-          ? 'Microphone permission was denied.'
+          ? text(
+              'Chrome đang chặn quyền micro. Hãy cho phép Microphone trong cài đặt trang.',
+              'Chrome is blocking microphone access. Allow Microphone in the site settings.',
+            )
           : event.error === 'no-speech'
-            ? 'No speech was detected. Please try again.'
-            : 'Voice input could not start. Please try again.';
+            ? text(
+                'Không phát hiện giọng nói. Vui lòng thử lại.',
+                'No speech was detected. Please try again.',
+              )
+            : text(
+                'Không thể bắt đầu nhập bằng giọng nói. Vui lòng thử lại.',
+                'Could not start voice input. Please try again.',
+              );
       setError(message);
       setIsListening(false);
     };
@@ -125,10 +151,15 @@ export function useSpeechRecognition({ onTranscript }: SpeechRecognitionOptions)
     try {
       recognition.start();
     } catch {
-      setError('Voice input could not start. Please try again.');
+      setError(
+        text(
+          'Không thể bắt đầu nhập bằng giọng nói. Vui lòng thử lại.',
+          'Could not start voice input. Please try again.',
+        ),
+      );
       setIsListening(false);
     }
-  }, []);
+  }, [text]);
 
   return { supported, isListening, error, start, stop, cancel };
 }

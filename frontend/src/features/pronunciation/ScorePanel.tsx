@@ -1,4 +1,5 @@
-import { MANDARIN_TONE_VI } from '../../lib/zh';
+import { useLanguage } from '../../i18n/LanguageProvider';
+import { MANDARIN_TONE_EN, MANDARIN_TONE_VI } from '../../lib/zh';
 import type { PronunciationResponse } from '../../types/pronunciation';
 import SyllableBreakdown, { toneTips } from './SyllableBreakdown';
 
@@ -51,18 +52,36 @@ const TONE_LEGEND_TEXT: Record<number, string> = {
 };
 
 export default function ScorePanel({ result }: ScorePanelProps) {
+  const { language, text } = useLanguage();
   const metrics: Array<{ label: string; value: number; hint: string }> = [
-    { label: 'Chính xác', value: result.accuracy, hint: 'Phát âm đúng' },
-    { label: 'Trôi chảy', value: result.fluency, hint: 'Độ mượt' },
+    {
+      label: text('Chính xác', 'Accuracy'),
+      value: result.accuracy,
+      hint: text('Đúng trên cả câu', 'Whole-sentence accuracy'),
+    },
+    {
+      label: text('Trôi chảy', 'Fluency'),
+      value: result.fluency,
+      hint: text('Độ mượt', 'Speech flow'),
+    },
   ];
   if (result.completeness !== null) {
-    metrics.push({ label: 'Đầy đủ', value: result.completeness, hint: 'Đọc đủ chữ' });
+    metrics.push({
+      label: text('Đầy đủ', 'Completeness'),
+      value: result.completeness,
+      hint: text('Đọc đủ chữ', 'All words spoken'),
+    });
   }
   if (result.prosody !== null) {
-    metrics.push({ label: 'Ngữ điệu', value: result.prosody, hint: 'Thanh điệu & nhịp' });
+    metrics.push({
+      label: text('Ngữ điệu', 'Prosody'),
+      value: result.prosody,
+      hint: text('Thanh điệu và nhịp', 'Tones and rhythm'),
+    });
   }
 
-  const tips = toneTips(result.words);
+  const tips = toneTips(result.words, language);
+  const toneNames = language === 'vi' ? MANDARIN_TONE_VI : MANDARIN_TONE_EN;
 
   return (
     <div className="animate-rise space-y-5">
@@ -79,16 +98,18 @@ export default function ScorePanel({ result }: ScorePanelProps) {
       <div>
         <div className="mb-2.5 flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Chi tiết từng âm tiết
+            {text('Chi tiết từng âm tiết', 'Syllable details')}
           </span>
-          <span className="text-[11px] text-slate-400">Màu = thanh điệu cần đọc</span>
+          <span className="text-[11px] text-slate-400">
+            {text('Màu = thanh điệu cần đọc', 'Color = target tone')}
+          </span>
         </div>
         <SyllableBreakdown words={result.words} />
         <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
           {TONE_LEGEND.map((t) => (
             <span key={t} className="flex items-center gap-1">
               <i className={'font-bold ' + TONE_LEGEND_TEXT[t]}>●</i>
-              {MANDARIN_TONE_VI[t]}
+              {toneNames[t]}
             </span>
           ))}
         </div>
@@ -97,7 +118,7 @@ export default function ScorePanel({ result }: ScorePanelProps) {
       {tips.length > 0 && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <div className="text-xs font-bold uppercase tracking-wide text-amber-600">
-            Âm tiết cần luyện thêm
+            {text('Âm tiết cần luyện thêm', 'Syllables to practice')}
           </div>
           <ul className="mt-2 space-y-1.5 text-[13.5px] font-medium leading-6 text-amber-900">
             {tips.map((tip, i) => (
@@ -109,13 +130,16 @@ export default function ScorePanel({ result }: ScorePanelProps) {
 
       <div className="flex items-center gap-4 text-xs text-slate-400">
         <span className="flex items-center gap-1.5">
-          <i className="inline-block h-2 w-2 rounded-full bg-score-good" /> ≥ 85 tốt
+          <i className="inline-block h-2 w-2 rounded-full bg-score-good" /> ≥ 85{' '}
+          {text('tốt', 'good')}
         </span>
         <span className="flex items-center gap-1.5">
-          <i className="inline-block h-2 w-2 rounded-full bg-score-mid" /> 60–84 khá
+          <i className="inline-block h-2 w-2 rounded-full bg-score-mid" /> 60-84{' '}
+          {text('khá', 'fair')}
         </span>
         <span className="flex items-center gap-1.5">
-          <i className="inline-block h-2 w-2 rounded-full bg-score-bad" /> &lt; 60 cần luyện
+          <i className="inline-block h-2 w-2 rounded-full bg-score-bad" /> &lt; 60{' '}
+          {text('cần luyện', 'needs practice')}
         </span>
       </div>
     </div>

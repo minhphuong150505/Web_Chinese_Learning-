@@ -92,6 +92,7 @@ public class PronunciationServiceImpl implements PronunciationService {
             List<WordScore> words = parseWordScores(raw.detailedJson(), wav);
             String storedReferenceText = unscripted ? raw.recognizedText() : referenceText;
             boolean scripted = !unscripted;
+            ScoredAssessment scored = scoreWholeSentence(raw, scripted);
 
             // Round 26 Phase 0: persist the 16k mono WAV for the tone corpus, but
             // only when the learner opted in (and collection is enabled). The id is
@@ -106,11 +107,11 @@ public class PronunciationServiceImpl implements PronunciationService {
                 userId,
                 storedReferenceText,
                 raw.recognizedText(),
-                toScale2(raw.accuracy()),
-                toScale2(raw.fluency()),
-                toScale2(raw.completeness()),
-                raw.prosody() == null ? null : toScale2(raw.prosody()),
-                toScale2(raw.pron()),
+                toScale2(scored.accuracy()),
+                toScale2(scored.fluency()),
+                toScale2(scored.completeness()),
+                scored.prosody() == null ? null : toScale2(scored.prosody()),
+                toScale2(scored.pron()),
                 writeWordsJson(words),
                 scripted,
                 audioConsent,
@@ -310,6 +311,34 @@ public class PronunciationServiceImpl implements PronunciationService {
     private BigDecimal toScale2(double value) {
         return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
     }
+
+    /**
+     * Azure's accuracy can be high when a learner reads only the words they chose
+     * to say correctly. For scripted read-aloud, score against the whole sentence:
+     * reading 50% of the reference perfectly should produce about 50%, not 100%.
+     */
+    private ScoredAssessment scoreWholeSentence(AssessmentRawResult raw, boolean scripted) {
+        double accuracy = clampScore(raw.accuracy());
+        double fluency = clampScore(raw.fluency());
+        double completeness = clampScore(raw.completeness());
+        Double prosody = raw.prosody() == null ? null : clampScore(raw.prosody());
+        double pron = clampScore(raw.pron());
+
+        if (scripted) {
+            double coverage = completeness / 100.0;
+            accuracy *= coverage;
+            pron *= coverage;
+        }
+
+        return new ScoredAssessment(accuracy, fluency, completeness, prosody, pron);
+    }
+
+    private double clampScore(double value) {
+        return Math.max(0.0, Math.min(100.0, value));
+    }
+
+    private record ScoredAssessment(double accuracy, double fluency, double completeness,
+                                    Double prosody, double pron) {}
 
     private record RawWord(String word, double accuracy, String errorType,
                            List<RawSyllable> syllables, List<PhonemeScore> phonemes) {}

@@ -2,21 +2,33 @@ import { useState } from 'react';
 import Icon from '../../components/Icon';
 import Spinner from '../../components/Spinner';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
+import { useLanguage, type Language } from '../../i18n/LanguageProvider';
 
 type RecordState = 'idle' | 'recording' | 'processing';
 
 interface RecordButtonProps {
   onComplete: (blob: Blob) => void;
+  onStart?: () => void;
   disabled?: boolean;
 }
 
-const STATUS_TEXT: Record<RecordState, string> = {
-  idle: 'Tap to record, then read the sentence aloud',
-  recording: 'Listening… tap again to stop',
-  processing: 'Scoring your pronunciation…',
+const STATUS_TEXT: Record<RecordState, Record<Language, string>> = {
+  idle: {
+    vi: 'Bấm để ghi âm, sau đó đọc to câu mẫu',
+    en: 'Tap to record, then read the sentence aloud',
+  },
+  recording: {
+    vi: 'Đang nghe... bấm lần nữa để dừng',
+    en: 'Listening... tap again to stop',
+  },
+  processing: {
+    vi: 'Đang chấm phát âm...',
+    en: 'Scoring your pronunciation...',
+  },
 };
 
-export default function RecordButton({ onComplete, disabled }: RecordButtonProps) {
+export default function RecordButton({ onComplete, onStart, disabled }: RecordButtonProps) {
+  const { language } = useLanguage();
   const recorder = useAudioRecorder();
   const [state, setState] = useState<RecordState>('idle');
 
@@ -25,6 +37,7 @@ export default function RecordButton({ onComplete, disabled }: RecordButtonProps
     if (state === 'idle') {
       setState('recording');
       try {
+        onStart?.();
         await recorder.start();
       } catch {
         setState('idle');
@@ -62,7 +75,9 @@ export default function RecordButton({ onComplete, disabled }: RecordButtonProps
           <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-red-400 opacity-50" />
         )}
       </button>
-      <p className="text-[13.5px] font-medium text-slate-500">{STATUS_TEXT[state]}</p>
+      <p className="text-[13.5px] font-medium text-slate-500">
+        {STATUS_TEXT[state][language]}
+      </p>
       {recorder.error && <p className="text-[13px] font-medium text-red-600">{recorder.error}</p>}
     </div>
   );

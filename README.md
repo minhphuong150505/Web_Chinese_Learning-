@@ -1,7 +1,7 @@
 # Web Chinese Learning
 
 A multi-user web app for practicing Mandarin Chinese with an AI tutor. Learners sign
-in with Google and get four practice modes, each backed by a real AI service:
+in with email/password or Google and get four practice modes, each backed by a real AI service:
 
 - **Chat** — converse in Chinese with an LLM tutor; replies are spoken aloud (TTS).
 - **Pronounce** — read a sentence aloud and get per-word pronunciation scoring (Azure Speech).
@@ -45,6 +45,21 @@ URLs:
 - Frontend: http://localhost:5173
 - Backend: http://localhost:8080
 - TTS service: http://localhost:8001
+
+## Production HTTPS
+
+Microphone access on a public domain requires HTTPS. The GCP Compose file includes
+Caddy, which provisions and renews the TLS certificate automatically:
+
+```bash
+# DNS A records for the root domain and www must point to the VM.
+# Google Cloud firewall must allow inbound TCP 80 and TCP/UDP 443.
+DOMAIN=kanhim0105.com docker compose -f docker-compose.gcp.yml up -d --build
+```
+
+Open `https://kanhim0105.com` after DNS points to the VM and Caddy finishes
+provisioning the certificate. For Google sign-in, also add `https://kanhim0105.com` as an authorized JavaScript
+origin in the Google OAuth client.
 
 ## How to reset everything
 

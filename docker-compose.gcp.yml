@@ -4,26 +4,24 @@ services:
     environment:
       POSTGRES_DB: chinese_app
       POSTGRES_USER: chinese
-      POSTGRES_PASSWORD: chinese
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-chinese}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chinese -d chinese_app"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   tts-service:
     build: ./tts-service
-    ports:
-      - "8001:8001"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   backend:
     build: ./backend
@@ -33,9 +31,10 @@ services:
       tts-service:
         condition: service_healthy
     environment:
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms128m -Xmx768m}
       DB_URL: jdbc:postgresql://postgres:5432/chinese_app
       DB_USER: chinese
-      DB_PASSWORD: chinese
+      DB_PASSWORD: ${DB_PASSWORD:-chinese}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
       LLM_API_KEY: ${LLM_API_KEY}
       LLM_CHAT_MODEL: ${LLM_CHAT_MODEL:-deepseek-v4-flash}
@@ -54,20 +53,37 @@ services:
       SINGLE_USER_DISPLAY_NAME: ${SINGLE_USER_DISPLAY_NAME:-Learner}
     volumes:
       - audio_data:/data/audio
-    ports:
-      - "8080:8080"
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       args:
-        # Vite inlines env at build time, so the client id is passed as a build arg.
         VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     depends_on:
       - backend
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      - frontend
+    environment:
+      DOMAIN: ${DOMAIN:-kanhim0105.com}
     ports:
-      - "5173:80"
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   audio_data:
+  caddy_data:
+  caddy_config:
