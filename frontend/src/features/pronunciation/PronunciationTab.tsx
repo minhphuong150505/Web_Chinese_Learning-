@@ -357,12 +357,17 @@ function HistoryRow({ entry }: { entry: PronunciationResponse }) {
       <div className={'grid h-10 w-10 flex-none place-items-center rounded-full text-[15px] font-extrabold ' + BAND_TEXT[band(avg)]}>
         {avg}
       </div>
-      <div className="flex flex-1 flex-wrap gap-3 text-[12.5px] text-slate-500">
-        {metrics.map(([label, value]) => (
-          <span key={label}>
-            <b className={BAND_TEXT[band(value)]}>{Math.round(value)}</b> {label}
-          </span>
-        ))}
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-zh text-[14px] font-semibold text-slate-700">
+          {entry.referenceText}
+        </div>
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12.5px] text-slate-500">
+          {metrics.map(([label, value]) => (
+            <span key={label}>
+              <b className={BAND_TEXT[band(value)]}>{Math.round(value)}</b> {label}
+            </span>
+          ))}
+        </div>
       </div>
       <div className="flex-none text-xs text-slate-400">
         {relativeTime(entry.createdAt, language)}
@@ -412,6 +417,14 @@ export default function PronunciationTab() {
       ?? firstPrompt(selectedSubtopic)
     );
   }, [selectedSubtopic, selectedPromptId]);
+  const selectedTopicReferenceTexts = useMemo(
+    () => new Set(selectedTopic.subtopics.flatMap((subtopic) => subtopic.sentences.map((sentence) => sentence.zh))),
+    [selectedTopic],
+  );
+  const topicHistory = useMemo(
+    () => (history.data ?? []).filter((entry) => selectedTopicReferenceTexts.has(entry.referenceText)),
+    [history.data, selectedTopicReferenceTexts],
+  );
 
   useEffect(() => {
     audioRef.current?.pause();
@@ -882,19 +895,29 @@ export default function PronunciationTab() {
         {result && <ScorePanel result={result} />}
 
         <div className="mt-9">
-          <div className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            {text('Lần thử gần đây', 'Recent attempts')}
+          <div className="mb-2.5 flex items-center justify-between gap-3">
+            <div className="min-w-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              {text('Lần thử gần đây', 'Recent attempts')} ·{' '}
+              <span className="text-violet-500">
+                {language === 'vi' ? selectedTopic.titleVi : selectedTopic.titleEn}
+              </span>
+            </div>
+            {!history.isLoading && (
+              <span className="flex-none text-[11px] font-semibold text-slate-400">
+                {topicHistory.length} {text('lần', 'attempts')}
+              </span>
+            )}
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-5">
             {history.isLoading && (
               <p className="py-4 text-sm text-slate-400">{text('Đang tải...', 'Loading...')}</p>
             )}
-            {history.data?.length === 0 && (
+            {!history.isLoading && topicHistory.length === 0 && (
               <p className="py-4 text-sm text-slate-400">
-                {text('Chưa có lần thử nào.', 'No attempts yet.')}
+                {text('Chưa có lần thử nào trong topic này.', 'No attempts in this topic yet.')}
               </p>
             )}
-            {history.data?.map((entry) => <HistoryRow key={entry.id} entry={entry} />)}
+            {topicHistory.map((entry) => <HistoryRow key={entry.id} entry={entry} />)}
           </div>
         </div>
           </div>
