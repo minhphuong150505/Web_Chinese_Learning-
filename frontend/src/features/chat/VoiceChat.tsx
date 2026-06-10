@@ -53,11 +53,19 @@ function Metric({ label, value }: { label: string; value: number }) {
 function TurnAssessment({ turn }: { turn: VoiceTurnResponse }) {
   const { language, text } = useLanguage();
   const words = turn.pronunciation.words.filter((word) => word.word.trim());
-  const wordAverage =
-    words.length > 0
-      ? words.reduce((sum, word) => sum + word.accuracyScore, 0) / words.length
-      : turn.pronunciation.accuracy;
   const tips = toneTips(words, language);
+
+  // Core, trustworthy criteria only: two pronunciation metrics measured from the
+  // audio (accuracy folds tone in; fluency = smoothness) plus two conversation
+  // metrics. We deliberately drop the overall PronScore headline (prosody drags it
+  // down unreliably on short turns) and the redundant per-word re-average.
+  const overall = Math.round(
+    (turn.pronunciation.accuracy +
+      turn.pronunciation.fluency +
+      turn.contextScore +
+      turn.grammarScore) /
+      4,
+  );
 
   return (
     <aside className="scroll w-full flex-none overflow-visible border-t border-slate-200 bg-slate-50/80 px-5 pb-20 pt-5 lg:h-full lg:w-[390px] lg:overflow-y-auto lg:border-l lg:border-t-0 lg:px-6 lg:py-5">
@@ -70,18 +78,14 @@ function TurnAssessment({ turn }: { turn: VoiceTurnResponse }) {
             {text('Kết quả mới nhất', 'Latest result')}
           </div>
         </div>
-        <div className={'text-[30px] font-extrabold ' + scoreBand(turn.pronunciation.pronScore)}>
-          {Math.round(turn.pronunciation.pronScore)}
-        </div>
+        <div className={'text-[30px] font-extrabold ' + scoreBand(overall)}>{overall}</div>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Metric label={text('Phát âm', 'Pronunciation')} value={turn.pronunciation.pronScore} />
-        <Metric label={text('Ngữ cảnh', 'Context')} value={turn.contextScore} />
         <Metric label={text('Chính xác', 'Accuracy')} value={turn.pronunciation.accuracy} />
         <Metric label={text('Trôi chảy', 'Fluency')} value={turn.pronunciation.fluency} />
+        <Metric label={text('Ngữ cảnh', 'Context')} value={turn.contextScore} />
         <Metric label={text('Ngữ pháp', 'Grammar')} value={turn.grammarScore} />
-        <Metric label={text('Từng từ', 'Per word')} value={wordAverage} />
       </div>
 
       <div className="mt-5 border-t border-slate-200 pt-4">
@@ -250,6 +254,9 @@ export default function VoiceChat({ conversationId, conversationTitle, messages,
     () => [...messages].reverse().find((message) => message.role === 'assistant'),
     [messages],
   );
+  // The AI line the on-screen "Nghe lại" button replays: the just-finished turn's
+  // reply if we have one, otherwise the most recent assistant message in history.
+  const replayableAssistant = lastTurn?.assistantMessage ?? latestAssistant;
   const activeText =
     phase === 'listening'
       ? '我在听。'
@@ -501,6 +508,18 @@ export default function VoiceChat({ conversationId, conversationTitle, messages,
                   {text('Bạn nói', 'You said')}:{' '}
                   <span className="font-zh text-slate-600">{lastTurn.userMessage.content}</span>
                 </div>
+              )}
+              {replayableAssistant?.audioUrl && phase !== 'listening' && phase !== 'processing' && (
+                <button
+                  type="button"
+                  onClick={() => replayMessage(replayableAssistant)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-4 py-2 text-[13px] font-bold text-violet-600 transition hover:bg-violet-50"
+                >
+                  <Icon name={replayingId === replayableAssistant.id ? 'pause' : 'volume'} size={16} />
+                  {replayingId === replayableAssistant.id
+                    ? text('Đang phát lại...', 'Replaying...')
+                    : text('Nghe lại lời AI', 'Replay AI line')}
+                </button>
               )}
             </div>
 
