@@ -25,7 +25,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(LetterController.class)
 @EnableConfigurationProperties(LetterProperties.class)
-@Import({GlobalExceptionHandler.class, SecurityConfig.class, JwtAuthFilter.class})
+@Import({
+    GlobalExceptionHandler.class,
+    SecurityConfig.class,
+    JwtAuthFilter.class,
+    ControllerWebMvcTestConfig.class
+})
 @TestPropertySource(properties = "app.letter.allowed-emails=nguoiyeukimhan")
 class LetterControllerTest {
 

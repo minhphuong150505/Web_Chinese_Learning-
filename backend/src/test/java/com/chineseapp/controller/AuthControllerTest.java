@@ -33,7 +33,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AuthController.class)
-@Import({CorsConfig.class, GlobalExceptionHandler.class, SecurityConfig.class, JwtAuthFilter.class})
+@Import({
+    CorsConfig.class,
+    GlobalExceptionHandler.class,
+    SecurityConfig.class,
+    JwtAuthFilter.class,
+    ControllerWebMvcTestConfig.class
+})
 class AuthControllerTest {
 
     @Autowired
