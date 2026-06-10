@@ -19,6 +19,7 @@ body { @apply bg-slate-100 text-slate-900 font-sans antialiased; }
 }
 .hz-text {
   line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 .hz-pinyin {
   margin-top: 0.08em;
