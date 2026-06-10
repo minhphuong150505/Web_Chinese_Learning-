@@ -213,7 +213,7 @@ export const hsk1: HskLevelData = {
     { id: 'hsk1-sgk', labelVi: 'Sách giáo khoa', labelEn: 'Textbook', file: 'HSK1/HSK1 Sách giáo khoa.pdf', kind: 'textbook' },
     { id: 'hsk1-sbt', labelVi: 'Sách bài tập', labelEn: 'Workbook', file: 'HSK1/HSK1 Sách bài tập.pdf', kind: 'workbook' },
     { id: 'hsk1-tv', labelVi: 'Sách tập viết', labelEn: 'Writing book', file: 'HSK1/Hsk 1 tập viết bản.pdf', kind: 'writing' },
-    { id: 'hsk1-bh', labelVi: 'Bài học (bản rút gọn)', labelEn: 'Lessons (compact)', file: 'HSK1/HSK-1-BH.pdf', kind: 'handbook' },
-    { id: 'hsk1-bt', labelVi: 'Bài tập (bản rút gọn)', labelEn: 'Exercises (compact)', file: 'HSK1/HSK-1-BT.pdf', kind: 'handbook' },
+    { id: 'hsk1-bh', labelVi: 'Bài học (đáp án)', labelEn: 'Lessons (answer key)', file: 'HSK1/HSK-1-BH.pdf', kind: 'handbook' },
+    { id: 'hsk1-bt', labelVi: 'Bài tập (đáp án)', labelEn: 'Exercises (answer key)', file: 'HSK1/HSK-1-BT.pdf', kind: 'handbook' },
   ],
 };

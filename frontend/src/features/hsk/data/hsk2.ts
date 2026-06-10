@@ -205,7 +205,7 @@ export const hsk2: HskLevelData = {
     { id: 'hsk2-sgk', labelVi: 'Sách giáo khoa', labelEn: 'Textbook', file: 'HSK2/HSK 2 Sách giáo khoa.pdf', kind: 'textbook' },
     { id: 'hsk2-sbt', labelVi: 'Sách bài tập', labelEn: 'Workbook', file: 'HSK2/HSK 2 Sách bài tập.pdf', kind: 'workbook' },
     { id: 'hsk2-tv', labelVi: 'Sách tập viết', labelEn: 'Writing book', file: 'HSK2/HSK 2 Sách tập viết.pdf', kind: 'writing' },
-    { id: 'hsk2-bh', labelVi: 'Bài học (bản rút gọn)', labelEn: 'Lessons (compact)', file: 'HSK2/HSK-2-BH.pdf', kind: 'handbook' },
-    { id: 'hsk2-bt', labelVi: 'Bài tập (bản rút gọn)', labelEn: 'Exercises (compact)', file: 'HSK2/HSK-2-BT.pdf', kind: 'handbook' },
+    { id: 'hsk2-bh', labelVi: 'Bài học (đáp án)', labelEn: 'Lessons (answer key)', file: 'HSK2/HSK-2-BH.pdf', kind: 'handbook' },
+    { id: 'hsk2-bt', labelVi: 'Bài tập (đáp án)', labelEn: 'Exercises (answer key)', file: 'HSK2/HSK-2-BT.pdf', kind: 'handbook' },
   ],
 };

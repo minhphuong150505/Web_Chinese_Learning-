@@ -361,7 +361,7 @@ export const hsk3: HskLevelData = {
   materials: [
     { id: 'hsk3-sgk', labelVi: 'Sách giáo khoa', labelEn: 'Textbook', file: 'HSK3/HSK 3 Sách giáo khoa.pdf', kind: 'textbook' },
     { id: 'hsk3-sbt', labelVi: 'Sách bài tập', labelEn: 'Workbook', file: 'HSK3/HSK 3 Sách bài tập.pdf', kind: 'workbook' },
-    { id: 'hsk3-bh', labelVi: 'Bài học (bản rút gọn)', labelEn: 'Lessons (compact)', file: 'HSK3/HSK-3-BH.pdf', kind: 'handbook' },
-    { id: 'hsk3-bt', labelVi: 'Bài tập (bản rút gọn)', labelEn: 'Exercises (compact)', file: 'HSK3/HSK-3-BT.pdf', kind: 'handbook' },
+    { id: 'hsk3-bh', labelVi: 'Bài học (đáp án)', labelEn: 'Lessons (answer key)', file: 'HSK3/HSK-3-BH.pdf', kind: 'handbook' },
+    { id: 'hsk3-bt', labelVi: 'Bài tập (đáp án)', labelEn: 'Exercises (answer key)', file: 'HSK3/HSK-3-BT.pdf', kind: 'handbook' },
   ],
 };
