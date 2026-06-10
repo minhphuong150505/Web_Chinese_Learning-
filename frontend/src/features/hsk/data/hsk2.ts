@@ -178,6 +178,13 @@ const vocab: VocabEntry[] = [
     proper: true,
   })),
 ];
+
+// Listening tracks named "LL-P.mp3" (LL = zero-padded lesson, P = part).
+function audioTracks(lesson: number, parts: number): string[] {
+  const nn = String(lesson).padStart(2, '0');
+  return Array.from({ length: parts }, (_, i) => `${nn}-${i + 1}.mp3`);
+}
+
 export const hsk2: HskLevelData = {
   level: 2,
   wordTarget: '300 từ',
@@ -207,5 +214,28 @@ export const hsk2: HskLevelData = {
     { id: 'hsk2-tv', labelVi: 'Sách tập viết', labelEn: 'Writing book', file: 'HSK2/HSK 2 Sách tập viết.pdf', kind: 'writing' },
     { id: 'hsk2-bh', labelVi: 'Bài học (đáp án)', labelEn: 'Lessons (answer key)', file: 'HSK2/HSK-2-BH.pdf', kind: 'handbook' },
     { id: 'hsk2-bt', labelVi: 'Bài tập (đáp án)', labelEn: 'Exercises (answer key)', file: 'HSK2/HSK-2-BT.pdf', kind: 'handbook' },
+  ],
+  audio: [
+    {
+      // 课本 audio — 15 lessons × 5 parts, preceded by the 片头 intro.
+      labelVi: 'Nghe — Sách giáo khoa (bài 1–15)',
+      labelEn: 'Listening — Textbook (lessons 1–15)',
+      dir: 'HSK2/hsk2sbaudio/hsk2SBaudio',
+      tracks: [
+        '00 HSK标准教程2--片头.mp3',
+        ...Array.from({ length: 15 }, (_, i) => audioTracks(i + 1, 5)).flat(),
+      ],
+    },
+    {
+      // 练习册 audio — 15 lessons × 2 parts, plus intro and the mock exam.
+      labelVi: 'Nghe — Sách bài tập (bài 1–15)',
+      labelEn: 'Listening — Workbook (lessons 1–15)',
+      dir: 'HSK2/hsk2wbaudio/hsk2WBaudio',
+      tracks: [
+        '00 HSK标准教程2练习册.mp3',
+        ...Array.from({ length: 15 }, (_, i) => audioTracks(i + 1, 2)).flat(),
+        '16 HSK（二级）模拟试卷.mp3',
+      ],
+    },
   ],
 };

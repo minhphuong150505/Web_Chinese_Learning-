@@ -90,7 +90,7 @@ class PronunciationServiceImplTest {
     }
 
     @Test
-    void assess_givenIncompleteRead_thenScoresAccuracyAgainstWholeSentence() throws IOException {
+    void assess_givenIncompleteRead_thenReportsAzureScoresVerbatim() throws IOException {
         AudioConversionService audioConv = mock(AudioConversionService.class);
         AzureSpeechClient azure = mock(AzureSpeechClient.class);
         ToneAnalysisClient tone = mock(ToneAnalysisClient.class);
@@ -102,8 +102,12 @@ class PronunciationServiceImplTest {
         File wav = File.createTempFile("test-incomplete-", ".wav");
         try {
             when(audioConv.toWav16kMono(any(File.class))).thenReturn(wav);
+            // Reading half the sentence: Azure reports completeness=50 and folds
+            // that into its overall PronScore via the documented weighted-lowest
+            // formula (0.4·s0 + 0.2·s1 + 0.2·s2 + 0.2·s3, here ≈ 76). We must
+            // surface these standard scores unchanged — no custom re-scaling.
             when(azure.assess(any(File.class), anyString())).thenReturn(new AssessmentRawResult(
-                "你好", 100.0, 90.0, 50.0, 88.0, 100.0, readSampleJson()
+                "你好", 100.0, 90.0, 50.0, 88.0, 76.0, readSampleJson()
             ));
             when(repo.save(any(PronunciationScore.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -111,14 +115,17 @@ class PronunciationServiceImplTest {
 
             PronunciationResponse response = service.assess(UUID.randomUUID(), audio, "你好世界", false);
 
+            // Accuracy stays the raw Azure value; completeness is shown as its own
+            // criterion; the overall is Azure's official PronScore — not multiplied
+            // by completeness a second time.
             assertThat(response.completeness()).isEqualTo(50.0);
-            assertThat(response.accuracy()).isEqualTo(50.0);
-            assertThat(response.pronScore()).isEqualTo(50.0);
+            assertThat(response.accuracy()).isEqualTo(100.0);
+            assertThat(response.pronScore()).isEqualTo(76.0);
 
             ArgumentCaptor<PronunciationScore> scoreCaptor = ArgumentCaptor.forClass(PronunciationScore.class);
             verify(repo).save(scoreCaptor.capture());
-            assertThat(scoreCaptor.getValue().getAccuracyScore()).isEqualByComparingTo("50.00");
-            assertThat(scoreCaptor.getValue().getPronScore()).isEqualByComparingTo("50.00");
+            assertThat(scoreCaptor.getValue().getAccuracyScore()).isEqualByComparingTo("100.00");
+            assertThat(scoreCaptor.getValue().getPronScore()).isEqualByComparingTo("76.00");
         } finally {
             Files.deleteIfExists(wav.toPath());
         }

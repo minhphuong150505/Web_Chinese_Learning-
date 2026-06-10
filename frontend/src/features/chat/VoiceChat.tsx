@@ -130,6 +130,106 @@ function TurnAssessment({ turn }: { turn: VoiceTurnResponse }) {
   );
 }
 
+function TranscriptRow({
+  message,
+  replaying,
+  onReplay,
+}: {
+  message: MessageDto;
+  replaying: boolean;
+  onReplay: (message: MessageDto) => void;
+}) {
+  const { text } = useLanguage();
+  const isAssistant = message.role === 'assistant';
+  return (
+    <div>
+      <div className="mb-1 flex items-center gap-2 text-[11px] font-bold uppercase text-slate-400">
+        <span className={isAssistant ? 'text-violet-500' : 'text-slate-500'}>
+          {isAssistant ? text('Trợ giảng AI', 'AI Tutor') : text('Bạn', 'You')}
+        </span>
+        {message.audioUrl && (
+          <button
+            type="button"
+            onClick={() => onReplay(message)}
+            className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2 py-0.5 text-[11px] font-bold normal-case text-violet-600 transition hover:bg-violet-50"
+          >
+            <Icon name={replaying ? 'pause' : 'play'} size={12} />
+            {replaying ? text('Đang phát', 'Playing') : text('Phát lại', 'Replay')}
+          </button>
+        )}
+      </div>
+      <div className={'rounded-xl px-3.5 py-2.5 ' + (isAssistant ? 'bg-violet-50' : 'bg-slate-100')}>
+        <Hanzi tokens={toZhTokens(message.content)} className="block text-[18px] leading-[2]" />
+      </div>
+    </div>
+  );
+}
+
+function TranscriptDrawer({
+  messages,
+  replayingId,
+  onReplay,
+  onClose,
+}: {
+  messages: MessageDto[];
+  replayingId: string | null;
+  onReplay: (message: MessageDto) => void;
+  onClose: () => void;
+}) {
+  const { text } = useLanguage();
+  const turns = useMemo(
+    () => messages.filter((message) => message.role === 'user' || message.role === 'assistant'),
+    [messages],
+  );
+  const bottomRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView();
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[80] flex">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={text('Đóng', 'Close')}
+        className="absolute inset-0 bg-slate-900/30"
+      />
+      <aside className="animate-rise relative z-10 flex h-full w-full max-w-[440px] flex-col border-r border-slate-200 bg-white shadow-2xl">
+        <header className="flex h-[64px] flex-none items-center justify-between border-b border-slate-200 px-5">
+          <div className="text-[15px] font-extrabold text-slate-900">
+            {text('Hội thoại trước đó', 'Conversation so far')}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-9 w-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100"
+            aria-label={text('Đóng', 'Close')}
+          >
+            <Icon name="x" size={18} />
+          </button>
+        </header>
+        <div className="scroll flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          {turns.length === 0 ? (
+            <p className="mt-6 text-center text-[13px] font-medium text-slate-400">
+              {text('Chưa có lượt nói nào để phát lại.', 'No turns to replay yet.')}
+            </p>
+          ) : (
+            turns.map((message) => (
+              <TranscriptRow
+                key={message.id}
+                message={message}
+                replaying={replayingId === message.id}
+                onReplay={onReplay}
+              />
+            ))
+          )}
+          <div ref={bottomRef} />
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 export default function VoiceChat({ conversationId, conversationTitle, messages, onClose }: VoiceChatProps) {
   const { language, text } = useLanguage();
   const recorder = useAudioRecorder();
@@ -139,7 +239,10 @@ export default function VoiceChat({ conversationId, conversationTitle, messages,
   const [elapsed, setElapsed] = useState(0);
   const [lastTurn, setLastTurn] = useState<VoiceTurnResponse | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [replayingId, setReplayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const replayRef = useRef<HTMLAudioElement>(null);
   const autoStopRef = useRef<number | null>(null);
   const stopRecordingRef = useRef<() => Promise<void>>(async () => undefined);
 
@@ -186,6 +289,7 @@ export default function VoiceChat({ conversationId, conversationTitle, messages,
       return () => {
         clearAutoStop();
         audioRef.current?.pause();
+        replayRef.current?.pause();
         document.body.style.overflow = previousBodyOverflow;
         document.documentElement.style.overflow = previousHtmlOverflow;
       };
@@ -209,6 +313,30 @@ export default function VoiceChat({ conversationId, conversationTitle, messages,
       }
     },
     [soundOn],
+  );
+
+  const stopReplay = useCallback(() => {
+    replayRef.current?.pause();
+    setReplayingId(null);
+  }, []);
+
+  // Replay a stored turn's audio. Uses a dedicated element so it never trips the
+  // live phase machine; pauses any live AI playback first to avoid overlap.
+  const replayMessage = useCallback(
+    (message: MessageDto) => {
+      const audio = replayRef.current;
+      if (!audio || !message.audioUrl) return;
+      if (replayingId === message.id) {
+        stopReplay();
+        return;
+      }
+      audioRef.current?.pause();
+      if (phase === 'speaking') setPhase('ready');
+      audio.src = message.audioUrl;
+      setReplayingId(message.id);
+      audio.play().catch(() => setReplayingId(null));
+    },
+    [phase, replayingId, stopReplay],
   );
 
   const stopRecording = useCallback(async () => {
@@ -240,6 +368,7 @@ export default function VoiceChat({ conversationId, conversationTitle, messages,
 
   async function startRecording() {
     if (phase !== 'ready') return;
+    stopReplay();
     setLocalError(null);
     setElapsed(0);
     try {
@@ -255,6 +384,7 @@ export default function VoiceChat({ conversationId, conversationTitle, messages,
 
   async function endCall() {
     clearAutoStop();
+    stopReplay();
     if (recorder.isRecording) {
       try {
         await recorder.stop();
@@ -280,6 +410,12 @@ export default function VoiceChat({ conversationId, conversationTitle, messages,
         onError={() => setPhase('ready')}
         preload="auto"
       />
+      <audio
+        ref={replayRef}
+        onEnded={() => setReplayingId(null)}
+        onError={() => setReplayingId(null)}
+        preload="none"
+      />
 
       <header className="flex h-[72px] flex-none items-center justify-between border-b border-slate-200 px-5 sm:px-8">
         <div className="flex min-w-0 items-center gap-3">
@@ -295,9 +431,19 @@ export default function VoiceChat({ conversationId, conversationTitle, messages,
             </div>
           </div>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] font-bold text-emerald-700">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          {text('Giọng nói trực tiếp', 'Live voice')}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setTranscriptOpen(true)}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-[12px] font-bold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+          >
+            <Icon name="chat" size={15} />
+            {text('Hội thoại', 'Transcript')}
+          </button>
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] font-bold text-emerald-700">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            {text('Giọng nói trực tiếp', 'Live voice')}
+          </div>
         </div>
       </header>
 
@@ -405,6 +551,18 @@ export default function VoiceChat({ conversationId, conversationTitle, messages,
 
         {lastTurn && <TurnAssessment turn={lastTurn} />}
       </div>
+
+      {transcriptOpen && (
+        <TranscriptDrawer
+          messages={messages}
+          replayingId={replayingId}
+          onReplay={replayMessage}
+          onClose={() => {
+            stopReplay();
+            setTranscriptOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

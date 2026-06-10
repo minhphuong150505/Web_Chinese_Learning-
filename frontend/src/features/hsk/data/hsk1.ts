@@ -186,6 +186,15 @@ const vocab: VocabEntry[] = [
   })),
 ];
 
+// Listening tracks named "LL-P.mp3". Each lesson has a different number of parts,
+// verified against the files on disk (课本 = hsk1sbaudio, 练习册 = hsk1wbaudio).
+const HSK1_SB_PARTS = [9, 10, 7, 7, 10, 4, 4, 4, 4, 6, 4, 4, 4, 4, 4];
+const HSK1_WB_PARTS = [5, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
+function audioTracks(lesson: number, parts: number): string[] {
+  const nn = String(lesson).padStart(2, '0');
+  return Array.from({ length: parts }, (_, i) => `${nn}-${i + 1}.mp3`);
+}
+
 export const hsk1: HskLevelData = {
   level: 1,
   wordTarget: '150 từ',
@@ -215,5 +224,26 @@ export const hsk1: HskLevelData = {
     { id: 'hsk1-tv', labelVi: 'Sách tập viết', labelEn: 'Writing book', file: 'HSK1/Hsk 1 tập viết bản.pdf', kind: 'writing' },
     { id: 'hsk1-bh', labelVi: 'Bài học (đáp án)', labelEn: 'Lessons (answer key)', file: 'HSK1/HSK-1-BH.pdf', kind: 'handbook' },
     { id: 'hsk1-bt', labelVi: 'Bài tập (đáp án)', labelEn: 'Exercises (answer key)', file: 'HSK1/HSK-1-BT.pdf', kind: 'handbook' },
+  ],
+  audio: [
+    {
+      labelVi: 'Nghe — Sách giáo khoa (bài 1–15)',
+      labelEn: 'Listening — Textbook (lessons 1–15)',
+      dir: 'HSK1/hsk1sbaudio',
+      tracks: [
+        '00 HSK标准教程1--片头.mp3',
+        ...HSK1_SB_PARTS.map((parts, i) => audioTracks(i + 1, parts)).flat(),
+      ],
+    },
+    {
+      // 练习册 — bài 1–15 (số phần không đều) + đề thi mô phỏng.
+      labelVi: 'Nghe — Sách bài tập (bài 1–15)',
+      labelEn: 'Listening — Workbook (lessons 1–15)',
+      dir: 'HSK1/hsk1wbaudio',
+      tracks: [
+        ...HSK1_WB_PARTS.map((parts, i) => audioTracks(i + 1, parts)).flat(),
+        '16 HSK（一级）模拟试卷.mp3',
+      ],
+    },
   ],
 };

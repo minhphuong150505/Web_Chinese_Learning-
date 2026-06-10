@@ -319,6 +319,21 @@ const PROPER: Row[] = [
   ['黄河', 'Huáng Hé', '', 'Hoàng Hà (con sông lớn thứ hai ở Trung Quốc)', 19],
 ];
 
+// 课本 listening tracks named "LL-P.mp3" (LL = zero-padded lesson, P = part).
+function sbTracks(lesson: number, parts: number): string[] {
+  const nn = String(lesson).padStart(2, '0');
+  return Array.from({ length: parts }, (_, i) => `${nn}-${i + 1}.mp3`);
+}
+
+// 练习册 listening tracks: one per lesson, named "LL.mp3".
+function wbTracks(from: number, to: number): string[] {
+  const tracks: string[] = [];
+  for (let lesson = from; lesson <= to; lesson += 1) {
+    tracks.push(`${String(lesson).padStart(2, '0')}.mp3`);
+  }
+  return tracks;
+}
+
 const vocab: VocabEntry[] = [
   ...WORDS.map(([hanzi, pinyin, pos, meaningVi, lesson]) => ({ hanzi, pinyin, pos, meaningVi, lesson })),
   ...PROPER.map(([hanzi, pinyin, pos, meaningVi, lesson]) => ({
@@ -363,5 +378,31 @@ export const hsk3: HskLevelData = {
     { id: 'hsk3-sbt', labelVi: 'Sách bài tập', labelEn: 'Workbook', file: 'HSK3/HSK 3 Sách bài tập.pdf', kind: 'workbook' },
     { id: 'hsk3-bh', labelVi: 'Bài học (đáp án)', labelEn: 'Lessons (answer key)', file: 'HSK3/HSK-3-BH.pdf', kind: 'handbook' },
     { id: 'hsk3-bt', labelVi: 'Bài tập (đáp án)', labelEn: 'Exercises (answer key)', file: 'HSK3/HSK-3-BT.pdf', kind: 'handbook' },
+  ],
+  audio: [
+    {
+      // 课本 — 20 lessons × 5 parts, preceded by the 片头 intro.
+      labelVi: 'Nghe — Sách giáo khoa (bài 1–20)',
+      labelEn: 'Listening — Textbook (lessons 1–20)',
+      dir: 'HSK3/hsk3sbaudio',
+      tracks: [
+        '00 HSK标准教程3.mp3',
+        ...Array.from({ length: 20 }, (_, i) => sbTracks(i + 1, 5)).flat(),
+      ],
+    },
+    {
+      // 练习册 quyển 1 — one track per lesson, bài 1–10, plus the intro.
+      labelVi: 'Nghe — Sách bài tập, quyển 1 (bài 1–10)',
+      labelEn: 'Listening — Workbook, part 1 (lessons 1–10)',
+      dir: 'HSK3/hsk3wbaudio/File nghe MP3 bài tập 1 HSK 3',
+      tracks: ['00 HSK标准教程3 练习册.mp3', ...wbTracks(1, 10)],
+    },
+    {
+      // 练习册 quyển 2 — bài 11–20, plus the 模拟试卷 mock exam.
+      labelVi: 'Nghe — Sách bài tập, quyển 2 (bài 11–20)',
+      labelEn: 'Listening — Workbook, part 2 (lessons 11–20)',
+      dir: 'HSK3/hsk3wbaudio/File nghe MP3 bài tập 2 HSK 3',
+      tracks: [...wbTracks(11, 20), '21 HSK(三级)模拟试卷.mp3'],
+    },
   ],
 };

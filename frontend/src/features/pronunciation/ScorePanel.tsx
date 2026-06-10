@@ -83,8 +83,26 @@ export default function ScorePanel({ result }: ScorePanelProps) {
   const tips = toneTips(result.words, language);
   const toneNames = language === 'vi' ? MANDARIN_TONE_VI : MANDARIN_TONE_EN;
 
+  const overallBand = band(result.pronScore);
+
   return (
     <div className="animate-rise space-y-5">
+      <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="flex flex-col">
+          <span className="text-[12.5px] font-semibold uppercase tracking-wide text-slate-400">
+            {text('Điểm tổng', 'Overall score')}
+          </span>
+          <span className={'text-[44px] font-extrabold leading-none ' + BAND_TEXT[overallBand]}>
+            {Math.round(result.pronScore)}
+          </span>
+        </div>
+        <p className="flex-1 text-[12.5px] leading-5 text-slate-500">
+          {text(
+            'Tính theo công thức chính thức của Azure: điểm yếu nhất trong các tiêu chí bên dưới được tính trọng số cao nhất, nên một tiêu chí kém sẽ kéo điểm tổng xuống.',
+            'Uses Azure’s official formula: your weakest criterion below is weighted the most, so one weak area pulls the overall down.',
+          )}
+        </p>
+      </div>
       <div
         className={
           'grid grid-cols-2 gap-3 ' + (metrics.length >= 4 ? 'sm:grid-cols-4' : 'sm:grid-cols-3')
