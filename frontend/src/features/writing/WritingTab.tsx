@@ -2,27 +2,25 @@ import { useState } from 'react';
 import Hanzi from '../../components/Hanzi';
 import Icon from '../../components/Icon';
 import Spinner from '../../components/Spinner';
+import HskBadge from '../../components/HskBadge';
 import { toZhTokens } from '../../lib/zh';
 import { useWritingFeedback, useWritingPrompt } from '../../hooks/useWritingFeedback';
 import { useLanguage, type Language } from '../../i18n/LanguageProvider';
 import {
+  WRITING_MOCK_TESTS,
   WRITING_PROMPT_TEXT,
   WRITING_PROMPT_TOPIC,
   WRITING_PROMPT_TOPIC_VI,
   WRITING_TOPICS,
   type WritingPracticeTopic,
 } from '../../lib/content';
-import type { WritingPromptResponse } from '../../types/writing';
+import HskLessonPicker from '../hsk/components/HskLessonPicker';
+import { lessonWritingRequest, type HskPracticeLesson } from '../hsk/lib/practiceTree';
+import type { CreateWritingPromptRequest, WritingPromptResponse } from '../../types/writing';
 import WritingFeedbackPanel from './WritingFeedbackPanel';
-
-const DEFAULT_WRITING_TOPIC = WRITING_TOPICS[0] as WritingPracticeTopic;
 
 function writingTopicTitle(topic: WritingPracticeTopic, language: Language) {
   return language === 'vi' ? topic.titleVi : topic.title;
-}
-
-function writingContext(topic: WritingPracticeTopic, language: Language) {
-  return language === 'vi' ? topic.contextVi : topic.context;
 }
 
 function savedWritingTitle(title: string, language: Language) {
@@ -33,43 +31,73 @@ function savedWritingTitle(title: string, language: Language) {
   return topic ? writingTopicTitle(topic, language) : title;
 }
 
+/** Either generate a prompt via the LLM (HSK lessons + custom), or use a fixed
+ * exam prompt directly (mock tests, which must keep their exact exam format). */
+type WritingCreate =
+  | { kind: 'api'; title: string; request: CreateWritingPromptRequest }
+  | { kind: 'static'; title: string; prompt: WritingPromptResponse };
+
 interface WritingSetupProps {
   pending: boolean;
   error?: string;
-  onCreate: (topicTitle: string, context: string) => void;
+  onCreate: (payload: WritingCreate) => void;
   onCancel?: () => void;
 }
 
-type WritingSetupMode = 'preset' | 'custom';
+type WritingSetupMode = 'hsk' | 'custom' | 'mock';
 
 function WritingSetup({ pending, error, onCreate, onCancel }: WritingSetupProps) {
   const { language, text } = useLanguage();
-  const [mode, setMode] = useState<WritingSetupMode>('preset');
-  const [topicId, setTopicId] = useState(DEFAULT_WRITING_TOPIC.id);
-  const selectedTopic = WRITING_TOPICS.find((topic) => topic.id === topicId) ?? DEFAULT_WRITING_TOPIC;
-  const [presetContext, setPresetContext] = useState(() => writingContext(selectedTopic, language));
+  const [mode, setMode] = useState<WritingSetupMode>('hsk');
+  const [lesson, setLesson] = useState<HskPracticeLesson | null>(null);
+  const [mockId, setMockId] = useState<string | null>(null);
   const [customTitle, setCustomTitle] = useState('');
   const [customContext, setCustomContext] = useState('');
 
-  function selectTopic(topic: WritingPracticeTopic) {
-    setTopicId(topic.id);
-    setPresetContext(writingContext(topic, language));
-  }
-
   function submit() {
-    if (mode === 'custom') {
-      const title = customTitle.trim();
-      const context = customContext.trim();
-      if (title && context) {
-        onCreate(title, context);
+    if (mode === 'hsk') {
+      if (lesson) {
+        const request = lessonWritingRequest(lesson);
+        onCreate({ kind: 'api', title: request.topicTitle, request });
       }
       return;
     }
-
-    onCreate(selectedTopic.title, presetContext.trim() || writingContext(selectedTopic, language));
+    if (mode === 'mock') {
+      const test = WRITING_MOCK_TESTS.find((item) => item.id === mockId);
+      if (test) {
+        const title = language === 'vi' ? test.titleVi : test.title;
+        onCreate({
+          kind: 'static',
+          title,
+          prompt: { title, promptText: test.promptText, level: test.level },
+        });
+      }
+      return;
+    }
+    const title = customTitle.trim();
+    const context = customContext.trim();
+    if (title && context) onCreate({ kind: 'api', title, request: { topicTitle: title, context } });
   }
 
-  const customReady = customTitle.trim().length > 0 && customContext.trim().length > 0;
+  const ready =
+    mode === 'hsk'
+      ? !!lesson
+      : mode === 'mock'
+        ? !!mockId
+        : customTitle.trim().length > 0 && customContext.trim().length > 0;
+
+  const footerNote =
+    mode === 'hsk'
+      ? text('Đề viết bám sát bài học HSK', 'Writing task tied to an HSK lesson')
+      : mode === 'mock'
+        ? text('Thi thử viết theo định dạng HSK', 'HSK-format writing mock test')
+        : text('Đề viết theo ngữ cảnh riêng', 'Writing task from your own context');
+
+  const TAB: Array<{ id: WritingSetupMode; labelVi: string; labelEn: string; icon: 'book' | 'spark' | 'cards' }> = [
+    { id: 'hsk', labelVi: 'Theo bài HSK', labelEn: 'HSK lessons', icon: 'book' },
+    { id: 'custom', labelVi: 'Tự tạo', labelEn: 'Custom', icon: 'spark' },
+    { id: 'mock', labelVi: 'Đề thi thử', labelEn: 'Mock test', icon: 'cards' },
+  ];
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -79,7 +107,7 @@ function WritingSetup({ pending, error, onCreate, onCancel }: WritingSetupProps)
             {text('Đề viết mới', 'New writing task')}
           </div>
           <h3 className="mt-1 text-[20px] font-extrabold text-slate-900">
-            {text('Chọn chủ đề và nhập bối cảnh', 'Choose a topic and enter a scenario')}
+            {text('Chọn cách luyện viết', 'Choose how to practice writing')}
           </h3>
         </div>
         {onCancel && (
@@ -94,83 +122,78 @@ function WritingSetup({ pending, error, onCreate, onCancel }: WritingSetupProps)
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
-        <button
-          type="button"
-          onClick={() => setMode('preset')}
-          aria-pressed={mode === 'preset'}
-          className={
-            'h-10 rounded-lg text-[13px] font-bold transition ' +
-            (mode === 'preset'
-              ? 'bg-white text-violet-700 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700')
-          }
-        >
-          {text('Chủ đề gợi ý', 'Suggested topics')}
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('custom')}
-          aria-pressed={mode === 'custom'}
-          className={
-            'inline-flex h-10 items-center justify-center gap-2 rounded-lg text-[13px] font-bold transition ' +
-            (mode === 'custom'
-              ? 'bg-white text-violet-700 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700')
-          }
-        >
-          <Icon name="spark" size={14} />
-          {text('Tùy chỉnh', 'Custom')}
-        </button>
+      <div className="mt-4 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
+        {TAB.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setMode(item.id)}
+            aria-pressed={mode === item.id}
+            className={
+              'inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[13px] font-bold transition ' +
+              (mode === item.id ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500 hover:text-slate-700')
+            }
+          >
+            <Icon name={item.icon} size={14} />
+            {language === 'vi' ? item.labelVi : item.labelEn}
+          </button>
+        ))}
       </div>
 
-      {mode === 'preset' ? (
-        <>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {WRITING_TOPICS.map((topic) => {
-              const active = topic.id === topicId;
-              return (
-                <button
-                  key={topic.id}
-                  type="button"
-                  onClick={() => selectTopic(topic)}
-                  className={
-                    'min-h-[78px] rounded-xl border px-3.5 py-3 text-left transition ' +
-                    (active
-                      ? 'border-violet-400 bg-violet-50 shadow-sm'
-                      : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50')
-                  }
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[13.5px] font-extrabold text-slate-900">
-                      {writingTopicTitle(topic, language)}
-                    </span>
-                    <span className="flex-none rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                      {topic.level}
-                    </span>
-                  </div>
-                  <div className="mt-1 font-zh text-[18px] font-semibold text-slate-500">
-                    {topic.zh}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+      {mode === 'hsk' && (
+        <div className="mt-4">
+          <p className="mb-2 text-[12.5px] text-slate-500">
+            {text(
+              'Chọn một bài HSK. Đề viết sẽ bám đúng chủ đề và trình độ từ vựng của bài.',
+              'Pick an HSK lesson. The task stays on that lesson’s topic and vocabulary level.',
+            )}
+          </p>
+          <HskLessonPicker selectedLessonId={lesson?.id ?? null} onSelectLesson={setLesson} />
+          {lesson && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3.5 py-2.5">
+              <HskBadge level={lesson.level} />
+              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-700">
+                {text('Bài', 'Lesson')} {lesson.no} · <span className="font-zh">{lesson.zh}</span> · {lesson.titleVi}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
-          <label className="mt-4 block">
-            <span className="text-[12px] font-bold uppercase tracking-wide text-slate-400">
-              {text('Nội dung đề viết', 'Writing prompt context')}
-            </span>
-            <textarea
-              value={presetContext}
-              onChange={(e) => setPresetContext(e.target.value)}
-              maxLength={1200}
-              rows={4}
-              className="scroll mt-2 min-h-[116px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] leading-6 text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
-            />
-          </label>
-        </>
-      ) : (
+      {mode === 'mock' && (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {WRITING_MOCK_TESTS.map((test) => {
+            const active = test.id === mockId;
+            return (
+              <button
+                key={test.id}
+                type="button"
+                onClick={() => setMockId(test.id)}
+                className={
+                  'rounded-xl border px-3.5 py-3 text-left transition ' +
+                  (active
+                    ? 'border-violet-400 bg-violet-50 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50')
+                }
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-[13.5px] font-extrabold text-slate-900">
+                    {language === 'vi' ? test.titleVi : test.title}
+                  </span>
+                  <HskBadge level={test.hskLevel} label={test.level} />
+                </div>
+                <div className="mt-1 text-[12px] text-slate-500">
+                  <span className="font-zh font-semibold text-slate-600">{test.part}</span> ·{' '}
+                  {language === 'vi' ? test.partVi : test.part}
+                </div>
+                <div className="mt-1 text-[11.5px] leading-4 text-slate-400">{test.descriptionVi}</div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {mode === 'custom' && (
         <div className="mt-4 space-y-4 rounded-2xl border border-violet-100 bg-violet-50/40 p-4">
           <div>
             <label
@@ -186,15 +209,10 @@ function WritingSetup({ pending, error, onCreate, onCancel }: WritingSetupProps)
               onChange={(e) => setCustomTitle(e.target.value)}
               maxLength={80}
               autoFocus
-              placeholder={text(
-                'Ví dụ: Email xin nghỉ học',
-                'Example: Asking for a school absence',
-              )}
+              placeholder={text('Ví dụ: Email xin nghỉ học', 'Example: Asking for a school absence')}
               className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[14px] font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
             />
-            <div className="mt-1 text-right text-[11px] font-semibold text-slate-400">
-              {customTitle.length}/80
-            </div>
+            <div className="mt-1 text-right text-[11px] font-semibold text-slate-400">{customTitle.length}/80</div>
           </div>
 
           <div>
@@ -231,15 +249,11 @@ function WritingSetup({ pending, error, onCreate, onCancel }: WritingSetupProps)
 
       {error && <p className="mt-3 text-[12px] font-semibold text-red-600">{error}</p>}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-[12px] font-semibold text-slate-400">
-          {mode === 'custom'
-            ? text('Đề viết theo ngữ cảnh riêng', 'Writing task from your own context')
-            : `HSK 2-3 · ${text('Đề luyện viết', 'Writing prompt')}`}
-        </div>
+        <div className="text-[12px] font-semibold text-slate-400">{footerNote}</div>
         <button
           type="button"
           onClick={submit}
-          disabled={pending || (mode === 'custom' && !customReady)}
+          disabled={pending || !ready}
           className="inline-flex h-10 items-center gap-2 rounded-full bg-violet-600 px-4 text-[13px] font-bold text-white shadow-accent transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending ? <Spinner size={15} /> : <Icon name="spark" size={15} />}
@@ -268,19 +282,22 @@ export default function WritingTab() {
     feedback.mutate({ text: text.trim(), topic: topic.trim() || null });
   }
 
-  function createWritingTask(topicTitle: string, context: string) {
-    prompt.mutate(
-      { topicTitle, context },
-      {
-        onSuccess: (data) => {
-          setActivePrompt(data);
-          setTopic(savedWritingTitle(topicTitle, language));
-          setText('');
-          feedback.reset();
-          setSetupOpen(false);
-        },
-      },
-    );
+  function applyPrompt(data: WritingPromptResponse, title: string) {
+    setActivePrompt(data);
+    setTopic(savedWritingTitle(title, language));
+    setText('');
+    feedback.reset();
+    setSetupOpen(false);
+  }
+
+  function createWritingTask(payload: WritingCreate) {
+    if (payload.kind === 'static') {
+      applyPrompt(payload.prompt, payload.title);
+      return;
+    }
+    prompt.mutate(payload.request, {
+      onSuccess: (data) => applyPrompt(data, payload.title),
+    });
   }
 
   return (
@@ -291,8 +308,9 @@ export default function WritingTab() {
             <div className="text-xs font-semibold uppercase tracking-wide text-violet-500">
               {uiText('Nhận xét bài viết', 'Writing feedback')}
             </div>
-            <h2 className="mt-1 text-[26px] font-extrabold tracking-tight text-slate-900">
-              {savedWritingTitle(activePrompt.title, language)}{' '}
+            <h2 className="mt-1 flex items-center gap-2 text-[26px] font-extrabold tracking-tight text-slate-900">
+              {savedWritingTitle(activePrompt.title, language)}
+              <HskBadge label={activePrompt.level} />
               <span className="font-zh text-[22px] font-semibold text-slate-400">写作</span>
             </h2>
           </div>
@@ -314,12 +332,12 @@ export default function WritingTab() {
             <span className="text-xs font-semibold uppercase tracking-wide text-violet-500">
               {uiText('Đề bài', 'Prompt')}
             </span>
-            <span className="rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-bold text-violet-500">
-              {activePrompt.level}
-            </span>
+            <HskBadge label={activePrompt.level} />
           </div>
-          <div className="mt-1.5 text-[16px]">
-            <Hanzi tokens={toZhTokens(activePrompt.promptText)} pinyin={false} />
+          <div className="mt-1.5 space-y-1 text-[16px]">
+            {activePrompt.promptText.split('\n').map((line, index) => (
+              <Hanzi key={index} tokens={toZhTokens(line)} pinyin={false} className="block" />
+            ))}
           </div>
         </div>
 
@@ -354,26 +372,19 @@ export default function WritingTab() {
               className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-violet-600 px-5 py-2.5 text-[14px] font-semibold text-white shadow-accent transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {feedback.isPending && <Spinner size={16} />}
-              {feedback.isPending
-                ? uiText('Đang nhận xét...', 'Reviewing...')
-                : uiText('Gửi bài', 'Submit')}
+              {feedback.isPending ? uiText('Đang nhận xét...', 'Reviewing...') : uiText('Gửi bài', 'Submit')}
             </button>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
             {feedback.isPending && (
-              <p className="text-sm text-slate-400">
-                {uiText('Đang nhận xét bài viết...', 'Reviewing your writing...')}
-              </p>
+              <p className="text-sm text-slate-400">{uiText('Đang nhận xét bài viết...', 'Reviewing your writing...')}</p>
             )}
             {feedback.isError && <p className="text-sm text-red-600">{(feedback.error as Error).message}</p>}
             {feedback.data && <WritingFeedbackPanel result={feedback.data} />}
             {!feedback.isPending && !feedback.data && !feedback.isError && (
               <p className="text-sm text-slate-400">
-                {uiText(
-                  'Bản sửa và nhận xét sẽ xuất hiện tại đây.',
-                  'Your corrected text and feedback will appear here.',
-                )}
+                {uiText('Bản sửa và nhận xét sẽ xuất hiện tại đây.', 'Your corrected text and feedback will appear here.')}
               </p>
             )}
           </div>

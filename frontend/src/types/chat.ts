@@ -20,6 +20,8 @@ export interface ConversationDto {
 export interface CreateConversationRequest {
   topicTitle: string;
   scenario: string;
+  /** 1-6 for HSK exam-prep conversations; omitted for free custom conversations. */
+  hskLevel?: number;
 }
 
 export interface ChatResponse {

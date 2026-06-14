@@ -56,6 +56,28 @@ class WritingFeedbackServiceImplTest {
     }
 
     @Test
+    void createPrompt_givenHskLevel_thenUsesExamPlannerAndEchoesLevel() {
+        LlmClient llm = mock(LlmClient.class);
+        when(llm.chat(any())).thenReturn("""
+            {"title":"Lesson 5","promptText":"用三到五个句子写一写你的周末。","level":"HSK 3"}
+            """);
+        WritingFeedbackService service = new WritingFeedbackServiceImpl(llm, new ObjectMapper());
+
+        WritingPromptResponse response = service.createPrompt(
+            new CreateWritingPromptRequest("HSK 3 · Bài 5", "Lesson focus on weekend plans.", 3)
+        );
+
+        assertThat(response.level()).isEqualTo("HSK 3");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<LlmClient.LlmMessage>> captor = ArgumentCaptor.forClass(List.class);
+        verify(llm).chat(captor.capture());
+        // Uses the HSK writing-exam planner and passes the target level to it.
+        assertThat(captor.getValue().get(0).content()).contains("书写");
+        assertThat(captor.getValue().get(1).content()).contains("HSK 3");
+    }
+
+    @Test
     void review_givenValidJson_thenDeserializesFields() {
         LlmClient llm = mock(LlmClient.class);
         when(llm.chat(any())).thenReturn(VALID_JSON);

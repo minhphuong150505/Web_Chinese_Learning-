@@ -41,9 +41,10 @@ public class ConversationServiceImpl implements ConversationService {
         Rules:
         1. Reply in simplified Chinese (简体中文) by default. If the learner writes in another language, reply in Chinese first, then a brief English clarification in parentheses.
         2. Keep replies short (1-3 sentences) and at the learner's level.
-        3. Use ONLY HSK 4 (or lower) vocabulary and grammar. Never use words or sentence patterns above HSK 4. If a needed idea has no HSK 1-4 word, rephrase it with simpler HSK 1-4 words instead.
-        4. If the learner's Chinese has a clear mistake, gently correct it in one sentence before continuing.
-        5. Always end with a small question to keep the conversation going.
+        3. Stay within the HSK vocabulary ceiling stated in the conversation context. If the context names a specific HSK level (e.g. "HSK 2"), use ONLY that level's vocabulary and grammar or lower. Otherwise use HSK 4 (or lower). Never exceed the stated ceiling; if a needed idea has no in-level word, rephrase it with simpler words.
+        4. Stay strictly on the conversation's topic, role, and goal described in the context. Do not drift to an unrelated scenario unless the learner clearly changes the subject.
+        5. If the learner's Chinese has a clear mistake, gently correct it in one sentence before continuing.
+        6. Always end with a small question to keep the conversation going.
         """;
     private static final String CONVERSATION_PLANNER_PROMPT = """
         You create Mandarin conversation-practice sessions for an HSK 2-3 learner.
@@ -60,6 +61,20 @@ public class ConversationServiceImpl implements ConversationService {
         The systemContext must tell the tutor to stay in the chosen topic unless the learner changes it.
         Do not use markdown or add text outside the JSON object.
         """;
+    private static final String HSK_CONVERSATION_PLANNER_PROMPT = """
+        You create Mandarin SPEAKING-EXAM practice sessions for a learner preparing for the HSK / HSKK test at a specific level.
+        Return ONLY one valid JSON object with exactly these fields:
+        {
+          "systemContext": "private role-play context for the tutor acting as an HSKK speaking examiner and practice partner for this exact HSK level and lesson topic, including the examiner role, the lesson theme, the learner goal, and the strict vocabulary ceiling",
+          "openingMessage": "one or two short simplified-Chinese sentences that open the practice for this lesson topic and end with a natural exam-style question"
+        }
+        The requested HSK level and lesson topic are authoritative. Build the session ONLY from them and never replace them with another practice topic.
+        The session must focus tightly on the given lesson topic so the learner practises that exact theme; do not wander to unrelated topics.
+        The openingMessage and the systemContext must restrict ALL vocabulary and grammar to the requested HSK level or lower; never use words or patterns above that level. If a needed idea has no in-level word, rephrase it with simpler in-level words.
+        The systemContext must instruct the tutor to: act as a supportive HSKK examiner for this level, keep replies short and at this level, stay on the lesson topic, gently correct clear mistakes, and end each turn with a question.
+        The openingMessage must be simplified Chinese.
+        Do not use markdown or add text outside the JSON object.
+        """;
     private static final String VOICE_SYSTEM_PROMPT = """
         You are an AI Mandarin tutor role-playing according to the current conversation context.
         The latest user message is speech recognized from a Mandarin learner.
@@ -71,9 +86,10 @@ public class ConversationServiceImpl implements ConversationService {
           "feedback": "specific Vietnamese feedback in no more than 30 words",
           "suggestedReply": "a corrected or more natural simplified-Chinese version, or an empty string if no correction is needed"
         }
-        Score context against the current conversation role and topic.
+        Score context against the current conversation role and topic. A reply that drifts away from the conversation's topic, role, or goal must score low on context.
         Score grammar and word choice independently from pronunciation.
-        The "reply" and "suggestedReply" must use ONLY HSK 4 (or lower) vocabulary and grammar. Never use words or sentence patterns above HSK 4; rephrase with simpler HSK 1-4 words instead.
+        The "reply" and "suggestedReply" must stay within the HSK vocabulary ceiling stated in the conversation context. If the context names a specific HSK level (e.g. "HSK 2"), use ONLY that level's vocabulary and grammar or lower; otherwise use HSK 4 (or lower). Never exceed the stated ceiling; rephrase with simpler in-level words instead.
+        Stay strictly on the conversation's topic and role; do not change the scenario unless the learner clearly does.
         Keep the reply to one or two short sentences and end with a natural prompt when appropriate.
         Do not use markdown or add text outside the JSON object.
         """;
@@ -105,8 +121,9 @@ public class ConversationServiceImpl implements ConversationService {
         Instant now = Instant.now();
         String topicTitle = requireCreationField(request == null ? null : request.topicTitle(), "Topic title");
         String scenario = requireCreationField(request == null ? null : request.scenario(), "Scenario");
+        Integer hskLevel = request == null ? null : request.hskLevel();
 
-        ConversationPlan plan = planConversation(topicTitle, scenario);
+        ConversationPlan plan = planConversation(topicTitle, scenario, hskLevel);
         Conversation conversation = new Conversation(UUID.randomUUID(), userId, trimTitle(topicTitle), now, now);
         convRepo.save(conversation);
 
@@ -305,16 +322,26 @@ public class ConversationServiceImpl implements ConversationService {
         return "好的，我们继续练习吧。你还想说什么？";
     }
 
-    private ConversationPlan planConversation(String topicTitle, String scenario) {
-        String userPrompt = """
-            Topic: %s
+    private ConversationPlan planConversation(String topicTitle, String scenario, Integer hskLevel) {
+        boolean hsk = hskLevel != null;
+        String plannerPrompt = hsk ? HSK_CONVERSATION_PLANNER_PROMPT : CONVERSATION_PLANNER_PROMPT;
+        String userPrompt = hsk
+            ? """
+                Target exam level: HSK %d
+                Lesson topic: %s
 
-            Learner-provided scenario/context:
-            %s
-            """.formatted(topicTitle, scenario);
+                Lesson focus / scenario:
+                %s
+                """.formatted(hskLevel, topicTitle, scenario)
+            : """
+                Topic: %s
+
+                Learner-provided scenario/context:
+                %s
+                """.formatted(topicTitle, scenario);
         try {
             String raw = llm.chat(List.of(
-                new LlmClient.LlmMessage("system", CONVERSATION_PLANNER_PROMPT),
+                new LlmClient.LlmMessage("system", plannerPrompt),
                 new LlmClient.LlmMessage("user", userPrompt)
             ));
             JsonNode root = objectMapper.readTree(extractJsonObject(raw));
@@ -324,17 +351,22 @@ public class ConversationServiceImpl implements ConversationService {
                 || !StringUtils.hasText(openingMessage)) {
                 throw new IllegalArgumentException("missing conversation plan field");
             }
+            // The stored context is replayed as a system message on every later turn,
+            // so the HSK ceiling lives here to keep ongoing replies on-level and on-topic.
+            String ceiling = hsk
+                ? "Vocabulary ceiling: HSK %d. Reply using ONLY HSK %d (or lower) words and grammar, and stay on the lesson topic above.%n%n".formatted(hskLevel, hskLevel)
+                : "";
             return new ConversationPlan(
                 """
                 Conversation practice context:
-                %s
+                %s%s
 
                 Conversation title/topic:
                 %s
 
                 Learner-provided scenario:
                 %s
-                """.formatted(systemContext, topicTitle, scenario).trim(),
+                """.formatted(ceiling, systemContext, topicTitle, scenario).trim(),
                 openingMessage
             );
         } catch (Exception ex) {

@@ -45,6 +45,19 @@ public class WritingFeedbackServiceImpl implements WritingFeedbackService {
         The promptText must be practical, concrete, and appropriate for the learner's level.
         Do not use markdown or add text outside the JSON object.
         """;
+    private static final String HSK_PROMPT_PLANNER_PROMPT = """
+        You create Mandarin WRITING-EXAM practice prompts for a learner preparing for the HSK 书写/写作 section at a specific level.
+        Return ONLY one valid JSON object with exactly these fields:
+        {
+          "title": "short English or Vietnamese title, max 8 words",
+          "promptText": "one clear simplified-Chinese writing prompt for this exact lesson topic and HSK level",
+          "level": "HSK <the requested level>"
+        }
+        The requested HSK level and lesson topic are authoritative. Build the prompt ONLY from them and keep it tightly on that lesson topic.
+        The promptText must restrict its expected vocabulary and grammar to the requested HSK level or lower, and must ask for an amount of writing appropriate to that level (HSK 1-2: 2-4 simple sentences; HSK 3: a short paragraph of 4-6 sentences; HSK 4: a paragraph of about 80 characters).
+        The "level" field must echo the requested level exactly, e.g. "HSK 3".
+        Do not use markdown or add text outside the JSON object.
+        """;
 
     private final LlmClient llm;
     private final ObjectMapper objectMapper;
@@ -58,6 +71,7 @@ public class WritingFeedbackServiceImpl implements WritingFeedbackService {
     public WritingPromptResponse createPrompt(CreateWritingPromptRequest req) {
         String topic = clean(req == null ? null : req.topicTitle());
         String context = clean(req == null ? null : req.context());
+        Integer hskLevel = req == null ? null : req.hskLevel();
         if (!StringUtils.hasText(topic)) {
             topic = DEFAULT_TOPIC;
         }
@@ -65,15 +79,24 @@ public class WritingFeedbackServiceImpl implements WritingFeedbackService {
             context = DEFAULT_CONTEXT;
         }
 
-        String userMessage = """
-            Topic: %s
+        boolean hsk = hskLevel != null;
+        String userMessage = hsk
+            ? """
+                Target exam level: HSK %d
+                Lesson topic: %s
 
-            Learner-provided context:
-            %s
-            """.formatted(topic, context);
+                Lesson focus / context:
+                %s
+                """.formatted(hskLevel, topic, context)
+            : """
+                Topic: %s
+
+                Learner-provided context:
+                %s
+                """.formatted(topic, context);
 
         String raw = llm.chat(List.of(
-            new LlmClient.LlmMessage("system", PROMPT_PLANNER_PROMPT),
+            new LlmClient.LlmMessage("system", hsk ? HSK_PROMPT_PLANNER_PROMPT : PROMPT_PLANNER_PROMPT),
             new LlmClient.LlmMessage("user", userMessage)
         ));
 
@@ -81,7 +104,7 @@ public class WritingFeedbackServiceImpl implements WritingFeedbackService {
             JsonNode root = objectMapper.readTree(stripFences(raw));
             String title = root.path("title").asText("").trim();
             String promptText = root.path("promptText").asText("").trim();
-            String level = root.path("level").asText("HSK 2").trim();
+            String level = root.path("level").asText(hsk ? "HSK " + hskLevel : "HSK 2").trim();
             if (!StringUtils.hasText(title) || !StringUtils.hasText(promptText)) {
                 throw new IllegalArgumentException("missing writing prompt field");
             }

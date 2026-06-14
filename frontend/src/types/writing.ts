@@ -8,6 +8,8 @@ export interface WritingFeedbackRequest {
 export interface CreateWritingPromptRequest {
   topicTitle: string;
   context: string;
+  /** 1-6 for HSK exam-prep writing tasks; omitted for free custom tasks. */
+  hskLevel?: number;
 }
 
 export interface WritingPromptResponse {

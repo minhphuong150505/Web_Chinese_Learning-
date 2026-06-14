@@ -1,22 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../../components/Icon';
 import Spinner from '../../components/Spinner';
+import HskBadge from '../../components/HskBadge';
 import { useConversation } from '../../hooks/useConversation';
 import { useSendMessage } from '../../hooks/useSendMessage';
 import { useLanguage, type Language } from '../../i18n/LanguageProvider';
-import { CONVERSATION_TOPICS, type ConversationPracticeTopic } from '../../lib/content';
+import { CONVERSATION_TOPICS, SPEAKING_MOCK_TESTS, type ConversationPracticeTopic } from '../../lib/content';
+import HskLessonPicker from '../hsk/components/HskLessonPicker';
+import { lessonConversationRequest, type HskPracticeLesson } from '../hsk/lib/practiceTree';
+import type { CreateConversationRequest } from '../../types/chat';
 import MessageList from './MessageList';
 import MessageComposer from './MessageComposer';
 import VoiceChat from './VoiceChat';
 
-const DEFAULT_TOPIC = CONVERSATION_TOPICS[0] as ConversationPracticeTopic;
-
 function topicTitle(topic: ConversationPracticeTopic, language: Language) {
   return language === 'vi' ? topic.titleVi : topic.title;
-}
-
-function topicScenario(topic: ConversationPracticeTopic, language: Language) {
-  return language === 'vi' ? topic.scenarioVi : topic.scenario;
 }
 
 function savedConversationTitle(title: string, language: Language) {
@@ -24,44 +22,69 @@ function savedConversationTitle(title: string, language: Language) {
   return topic ? topicTitle(topic, language) : title;
 }
 
+/** HSK level encoded in a saved conversation title ("HSK 3 · ...") for filtering. */
+function titleHskLevel(title: string): number | null {
+  const match = /HSK\s*([1-6])/i.exec(title);
+  return match ? Number(match[1]) : null;
+}
+
 interface ConversationSetupProps {
   pending: boolean;
   error?: string;
-  onCreate: (topicTitle: string, scenario: string) => void;
+  onCreate: (req: CreateConversationRequest) => void;
   onCancel?: () => void;
 }
 
-type SetupMode = 'preset' | 'custom';
+type SetupMode = 'hsk' | 'custom' | 'mock';
 
 function ConversationSetup({ pending, error, onCreate, onCancel }: ConversationSetupProps) {
   const { language, text } = useLanguage();
-  const [mode, setMode] = useState<SetupMode>('preset');
-  const [topicId, setTopicId] = useState(DEFAULT_TOPIC.id);
-  const selectedTopic = CONVERSATION_TOPICS.find((topic) => topic.id === topicId) ?? DEFAULT_TOPIC;
-  const [presetScenario, setPresetScenario] = useState(() => topicScenario(selectedTopic, language));
+  const [mode, setMode] = useState<SetupMode>('hsk');
+  const [lesson, setLesson] = useState<HskPracticeLesson | null>(null);
+  const [mockId, setMockId] = useState<string | null>(null);
   const [customTitle, setCustomTitle] = useState('');
   const [customScenario, setCustomScenario] = useState('');
 
-  function selectTopic(topic: ConversationPracticeTopic) {
-    setTopicId(topic.id);
-    setPresetScenario(topicScenario(topic, language));
-  }
-
   function submit() {
-    if (mode === 'custom') {
-      const title = customTitle.trim();
-      const scenario = customScenario.trim();
-      if (title && scenario) {
-        onCreate(title, scenario);
+    if (mode === 'hsk') {
+      if (lesson) onCreate(lessonConversationRequest(lesson));
+      return;
+    }
+    if (mode === 'mock') {
+      const test = SPEAKING_MOCK_TESTS.find((item) => item.id === mockId);
+      if (test) {
+        onCreate({
+          topicTitle: language === 'vi' ? test.titleVi : test.title,
+          scenario: test.scenario,
+          hskLevel: test.hskLevel,
+        });
       }
       return;
     }
-
-    const scenario = presetScenario.trim() || topicScenario(selectedTopic, language);
-    onCreate(selectedTopic.title, scenario);
+    const title = customTitle.trim();
+    const scenario = customScenario.trim();
+    if (title && scenario) onCreate({ topicTitle: title, scenario });
   }
 
-  const customReady = customTitle.trim().length > 0 && customScenario.trim().length > 0;
+  const ready =
+    mode === 'hsk'
+      ? !!lesson
+      : mode === 'mock'
+        ? !!mockId
+        : customTitle.trim().length > 0 && customScenario.trim().length > 0;
+
+  const footerNote =
+    mode === 'hsk'
+      ? text('Luyện nói bám sát bài học HSK', 'Speaking practice tied to an HSK lesson')
+      : mode === 'mock'
+        ? text('Thi thử nói theo định dạng HSKK', 'HSKK-format speaking mock test')
+        : text('Hội thoại theo ngữ cảnh riêng', 'Conversation from your own context');
+
+  const TAB: Array<{ id: SetupMode; labelVi: string; labelEn: string; icon: 'book' | 'spark' | 'cards' }> = [
+    { id: 'hsk', labelVi: 'Theo bài HSK', labelEn: 'HSK lessons', icon: 'book' },
+    { id: 'custom', labelVi: 'Tự tạo', labelEn: 'Custom', icon: 'spark' },
+    { id: 'mock', labelVi: 'Đề thi thử', labelEn: 'Mock test', icon: 'cards' },
+  ];
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -71,7 +94,7 @@ function ConversationSetup({ pending, error, onCreate, onCancel }: ConversationS
             {text('Hội thoại mới', 'New conversation')}
           </div>
           <h3 className="mt-1 text-[20px] font-extrabold text-slate-900">
-            {text('Chọn chủ đề và nhập bối cảnh', 'Choose a topic and enter a scenario')}
+            {text('Chọn cách luyện nói', 'Choose how to practice speaking')}
           </h3>
         </div>
         {onCancel && (
@@ -86,83 +109,80 @@ function ConversationSetup({ pending, error, onCreate, onCancel }: ConversationS
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
-        <button
-          type="button"
-          onClick={() => setMode('preset')}
-          aria-pressed={mode === 'preset'}
-          className={
-            'h-10 rounded-lg text-[13px] font-bold transition ' +
-            (mode === 'preset'
-              ? 'bg-white text-violet-700 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700')
-          }
-        >
-          {text('Chủ đề gợi ý', 'Suggested topics')}
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('custom')}
-          aria-pressed={mode === 'custom'}
-          className={
-            'inline-flex h-10 items-center justify-center gap-2 rounded-lg text-[13px] font-bold transition ' +
-            (mode === 'custom'
-              ? 'bg-white text-violet-700 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700')
-          }
-        >
-          <Icon name="spark" size={14} />
-          {text('Tùy chỉnh', 'Custom')}
-        </button>
+      <div className="mt-4 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
+        {TAB.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setMode(item.id)}
+            aria-pressed={mode === item.id}
+            className={
+              'inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[13px] font-bold transition ' +
+              (mode === item.id ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500 hover:text-slate-700')
+            }
+          >
+            <Icon name={item.icon} size={14} />
+            {language === 'vi' ? item.labelVi : item.labelEn}
+          </button>
+        ))}
       </div>
 
-      {mode === 'preset' ? (
-        <>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {CONVERSATION_TOPICS.map((topic) => {
-              const active = topic.id === topicId;
-              return (
-                <button
-                  key={topic.id}
-                  type="button"
-                  onClick={() => selectTopic(topic)}
-                  className={
-                    'min-h-[78px] rounded-xl border px-3.5 py-3 text-left transition ' +
-                    (active
-                      ? 'border-violet-400 bg-violet-50 shadow-sm'
-                      : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50')
-                  }
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[13.5px] font-extrabold text-slate-900">
-                      {topicTitle(topic, language)}
-                    </span>
-                    <span className="flex-none rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                      {topic.level}
-                    </span>
-                  </div>
-                  <div className="mt-1 font-zh text-[18px] font-semibold text-slate-500">
-                    {topic.zh}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+      {mode === 'hsk' && (
+        <div className="mt-4">
+          <p className="mb-2 text-[12.5px] text-slate-500">
+            {text(
+              'Chọn một bài trong giáo trình HSK. AI sẽ đóng vai giám khảo và giữ đúng từ vựng của cấp đó.',
+              'Pick an HSK lesson. The AI plays examiner and stays within that level’s vocabulary.',
+            )}
+          </p>
+          <HskLessonPicker selectedLessonId={lesson?.id ?? null} onSelectLesson={setLesson} />
+          {lesson && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3.5 py-2.5">
+              <HskBadge level={lesson.level} />
+              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-700">
+                {text('Bài', 'Lesson')} {lesson.no} · <span className="font-zh">{lesson.zh}</span> · {lesson.titleVi}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
-          <label className="mt-4 block">
-            <span className="text-[12px] font-bold uppercase tracking-wide text-slate-400">
-              {text('Nội dung hội thoại', 'Conversation scenario')}
-            </span>
-            <textarea
-              value={presetScenario}
-              onChange={(e) => setPresetScenario(e.target.value)}
-              maxLength={1200}
-              rows={4}
-              className="scroll mt-2 min-h-[116px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] leading-6 text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
-            />
-          </label>
-        </>
-      ) : (
+      {mode === 'mock' && (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {SPEAKING_MOCK_TESTS.map((test) => {
+            const active = test.id === mockId;
+            return (
+              <button
+                key={test.id}
+                type="button"
+                onClick={() => setMockId(test.id)}
+                className={
+                  'rounded-xl border px-3.5 py-3 text-left transition ' +
+                  (active
+                    ? 'border-violet-400 bg-violet-50 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50')
+                }
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-[13.5px] font-extrabold text-slate-900">
+                    {language === 'vi' ? test.titleVi : test.title}
+                  </span>
+                  <HskBadge level={test.hskLevel} label={test.level} />
+                </div>
+                <div className="mt-1 text-[12px] text-slate-500">
+                  <span className="font-zh font-semibold text-slate-600">{test.part}</span> ·{' '}
+                  {language === 'vi' ? test.partVi : test.part}
+                </div>
+                <div className="mt-1 text-[11.5px] leading-4 text-slate-400">
+                  {language === 'vi' ? test.scenarioVi : test.scenario}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {mode === 'custom' && (
         <div className="mt-4 space-y-4 rounded-2xl border border-violet-100 bg-violet-50/40 p-4">
           <div>
             <label
@@ -178,15 +198,10 @@ function ConversationSetup({ pending, error, onCreate, onCancel }: ConversationS
               onChange={(e) => setCustomTitle(e.target.value)}
               maxLength={80}
               autoFocus
-              placeholder={text(
-                'Ví dụ: Gặp đối tác tại hội chợ',
-                'Example: Meeting a partner at a trade fair',
-              )}
+              placeholder={text('Ví dụ: Gặp đối tác tại hội chợ', 'Example: Meeting a partner at a trade fair')}
               className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[14px] font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
             />
-            <div className="mt-1 text-right text-[11px] font-semibold text-slate-400">
-              {customTitle.length}/80
-            </div>
+            <div className="mt-1 text-right text-[11px] font-semibold text-slate-400">{customTitle.length}/80</div>
           </div>
 
           <div>
@@ -223,15 +238,11 @@ function ConversationSetup({ pending, error, onCreate, onCancel }: ConversationS
 
       {error && <p className="mt-3 text-[12px] font-semibold text-red-600">{error}</p>}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-[12px] font-semibold text-slate-400">
-          {mode === 'custom'
-            ? text('Hội thoại theo ngữ cảnh riêng', 'Conversation from your own context')
-            : `HSK 2-3 · ${text('Bối cảnh nhập vai', 'Role-play context')}`}
-        </div>
+        <div className="text-[12px] font-semibold text-slate-400">{footerNote}</div>
         <button
           type="button"
           onClick={submit}
-          disabled={pending || (mode === 'custom' && !customReady)}
+          disabled={pending || !ready}
           className="inline-flex h-10 items-center gap-2 rounded-full bg-violet-600 px-4 text-[13px] font-bold text-white shadow-accent transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending ? <Spinner size={15} /> : <Icon name="spark" size={15} />}
@@ -247,6 +258,7 @@ export default function ChatTab() {
   const [soundOn, setSoundOn] = useState(true);
   const [voiceChatOpen, setVoiceChatOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
+  const [levelFilter, setLevelFilter] = useState<number | null>(null);
   const [autoPlayMessageId, setAutoPlayMessageId] = useState<string | null>(null);
   const soundOnRef = useRef(soundOn);
   const {
@@ -279,12 +291,28 @@ export default function ChatTab() {
   const selectedConversationTitle = selectedTopic
     ? topicTitle(selectedTopic, language)
     : selectedConversation?.title;
+  const selectedConversationLevel = selectedConversation
+    ? titleHskLevel(selectedConversation.title)
+    : null;
 
-  function createPractice(topicTitle: string, scenario: string) {
-    createConversation.mutate(
-      { topicTitle, scenario },
-      { onSuccess: () => setSetupOpen(false) },
-    );
+  const availableLevels = useMemo(() => {
+    const levels = new Set<number>();
+    conversations.forEach((conversation) => {
+      const level = titleHskLevel(conversation.title);
+      if (level) levels.add(level);
+    });
+    return [...levels].sort((a, b) => a - b);
+  }, [conversations]);
+  const visibleConversations = useMemo(
+    () =>
+      levelFilter === null
+        ? conversations
+        : conversations.filter((conversation) => titleHskLevel(conversation.title) === levelFilter),
+    [conversations, levelFilter],
+  );
+
+  function createPractice(req: CreateConversationRequest) {
+    createConversation.mutate(req, { onSuccess: () => setSetupOpen(false) });
   }
 
   useEffect(() => {
@@ -302,9 +330,10 @@ export default function ChatTab() {
           <div className="text-xs font-semibold uppercase tracking-wide text-violet-500">
             {text('Luyện hội thoại', 'Conversation practice')}
           </div>
-          <h2 className="mt-1 text-[26px] font-extrabold tracking-tight text-slate-900">
+          <h2 className="mt-1 flex items-center gap-2 text-[26px] font-extrabold tracking-tight text-slate-900">
             {selectedConversationTitle ?? text('Chọn bài luyện tập', 'Choose a practice')}
-            <span className="ml-2 font-zh text-[22px] font-semibold text-slate-400">练习</span>
+            {selectedConversationLevel && <HskBadge level={selectedConversationLevel} />}
+            <span className="font-zh text-[22px] font-semibold text-slate-400">练习</span>
           </h2>
         </div>
         <div className="flex items-center gap-2.5">
@@ -339,22 +368,66 @@ export default function ChatTab() {
         </div>
         </div>
         {conversations.length > 0 && (
-          <div className="scroll flex gap-2 overflow-x-auto pb-1">
-            {conversations.map((conversation) => (
-              <button
-                key={conversation.id}
-                type="button"
-                onClick={() => setConversationId(conversation.id)}
-                className={
-                  'h-9 max-w-[210px] flex-none truncate rounded-full border px-3.5 text-[12.5px] font-bold transition ' +
-                  (conversation.id === conversationId
-                    ? 'border-violet-500 bg-violet-600 text-white shadow-accent'
-                    : 'border-slate-200 bg-white text-slate-600 hover:border-violet-200 hover:bg-violet-50')
-                }
-              >
-                {savedConversationTitle(conversation.title, language)}
-              </button>
-            ))}
+          <div className="flex flex-col gap-2">
+            {availableLevels.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  {text('Lọc cấp', 'Filter')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLevelFilter(null)}
+                  className={
+                    'h-7 rounded-full border px-3 text-[11.5px] font-bold transition ' +
+                    (levelFilter === null
+                      ? 'border-violet-500 bg-violet-600 text-white'
+                      : 'border-slate-200 bg-white text-slate-500 hover:border-violet-200')
+                  }
+                >
+                  {text('Tất cả', 'All')}
+                </button>
+                {availableLevels.map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setLevelFilter(level)}
+                    className={
+                      'h-7 rounded-full border px-3 text-[11.5px] font-bold transition ' +
+                      (levelFilter === level
+                        ? 'border-violet-500 bg-violet-600 text-white'
+                        : 'border-slate-200 bg-white text-slate-500 hover:border-violet-200')
+                    }
+                  >
+                    HSK {level}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="scroll flex gap-2 overflow-x-auto pb-1">
+              {visibleConversations.map((conversation) => {
+                const level = titleHskLevel(conversation.title);
+                return (
+                  <button
+                    key={conversation.id}
+                    type="button"
+                    onClick={() => setConversationId(conversation.id)}
+                    className={
+                      'flex h-9 max-w-[230px] flex-none items-center gap-1.5 truncate rounded-full border px-3.5 text-[12.5px] font-bold transition ' +
+                      (conversation.id === conversationId
+                        ? 'border-violet-500 bg-violet-600 text-white shadow-accent'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-violet-200 hover:bg-violet-50')
+                    }
+                  >
+                    {level && (
+                      <span className="flex-none rounded-full bg-white/25 px-1.5 text-[10px] font-extrabold">
+                        H{level}
+                      </span>
+                    )}
+                    <span className="truncate">{savedConversationTitle(conversation.title, language)}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

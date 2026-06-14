@@ -88,6 +88,44 @@ class ConversationServiceImplTest {
     }
 
     @Test
+    void createConversation_givenHskLevel_thenUsesExamPlannerAndCapsVocabulary() {
+        ConversationRepository convRepo = mock(ConversationRepository.class);
+        MessageRepository msgRepo = mock(MessageRepository.class);
+        LlmClient llm = mock(LlmClient.class);
+        TtsService tts = mock(TtsService.class);
+        ConversationService service = new ConversationServiceImpl(
+            convRepo, msgRepo, llm, tts, mock(PronunciationService.class), new ObjectMapper()
+        );
+        when(convRepo.save(any(Conversation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(msgRepo.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(llm.chat(any())).thenReturn("""
+            {"systemContext":"Act as an HSKK examiner for this lesson.",
+             "openingMessage":"你好！你叫什么名字？"}
+            """);
+        when(tts.synthesize(any())).thenReturn("hsk.mp3");
+
+        service.createConversation(
+            USER_ID,
+            new CreateConversationRequest("HSK 2 · Bài 2", "Lesson focus on greetings.", 2)
+        );
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<LlmClient.LlmMessage>> llmCaptor = ArgumentCaptor.forClass(List.class);
+        verify(llm).chat(llmCaptor.capture());
+        List<LlmClient.LlmMessage> planner = llmCaptor.getValue();
+        // Uses the HSK speaking-exam planner and passes the target level to it.
+        assertThat(planner.get(0).content()).contains("HSKK");
+        assertThat(planner.get(1).content()).contains("HSK 2");
+
+        // The stored system context carries the level ceiling so later turns stay on-level.
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(msgRepo, org.mockito.Mockito.times(2)).save(messageCaptor.capture());
+        String systemContext = messageCaptor.getAllValues().get(0).getContent();
+        assertThat(systemContext).contains("HSK 2");
+        assertThat(systemContext).containsIgnoringCase("ceiling");
+    }
+
+    @Test
     void createConversation_givenMissingRequest_thenDoesNotFallBackToRestaurant() {
         ConversationService service = new ConversationServiceImpl(
             mock(ConversationRepository.class),
