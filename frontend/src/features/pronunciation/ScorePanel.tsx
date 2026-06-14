@@ -1,6 +1,6 @@
 import { useLanguage } from '../../i18n/LanguageProvider';
 import { MANDARIN_TONE_EN, MANDARIN_TONE_VI } from '../../lib/zh';
-import type { PronunciationResponse } from '../../types/pronunciation';
+import type { PronunciationResponse, WordScore } from '../../types/pronunciation';
 import SyllableBreakdown, { toneTips } from './SyllableBreakdown';
 
 interface ScorePanelProps {
@@ -38,6 +38,58 @@ function BigMetric({ label, value, hint }: { label: string; value: number; hint:
         <span className={'block h-full rounded-full ' + BAND_BAR[b]} style={{ width: `${value}%` }} />
       </div>
       <div className="mt-1.5 text-xs text-slate-400">{hint}</div>
+    </div>
+  );
+}
+
+const BAND_WORD_BG: Record<string, string> = {
+  good: '',
+  mid: 'bg-amber-50',
+  bad: 'bg-red-50',
+};
+
+/** Replays the sentence with each word tinted by its accuracy so the learner can
+ * see at a glance where they went wrong: red = many errors, amber = minor, green = correct. */
+function SentenceHighlight({ words }: { words: WordScore[] }) {
+  const { text } = useLanguage();
+  const spoken = words.filter((w) => w.word.trim());
+  if (spoken.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="mb-2.5 flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          {text('Chỗ đọc sai', 'Where you went wrong')}
+        </span>
+        <span className="text-[11px] text-slate-400">
+          {text('Màu = độ chính xác của từ', 'Color = per-word accuracy')}
+        </span>
+      </div>
+      <div className="font-zh text-[26px] leading-[1.7]">
+        {spoken.map((w, i) => {
+          const b = band(w.accuracyScore);
+          return (
+            <span
+              key={i}
+              title={`${Math.round(w.accuracyScore)}/100`}
+              className={'rounded px-0.5 font-semibold ' + BAND_TEXT[b] + ' ' + BAND_WORD_BG[b]}
+            >
+              {w.word}
+            </span>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+        <span className="flex items-center gap-1.5">
+          <i className="inline-block h-2 w-2 rounded-full bg-score-bad" /> {text('Sai nhiều', 'Many errors')} &lt; 60
+        </span>
+        <span className="flex items-center gap-1.5">
+          <i className="inline-block h-2 w-2 rounded-full bg-score-mid" /> {text('Sai ít', 'Minor')} 60-84
+        </span>
+        <span className="flex items-center gap-1.5">
+          <i className="inline-block h-2 w-2 rounded-full bg-score-good" /> {text('Đúng', 'Correct')} ≥ 85
+        </span>
+      </div>
     </div>
   );
 }
@@ -103,6 +155,9 @@ export default function ScorePanel({ result }: ScorePanelProps) {
           )}
         </p>
       </div>
+
+      {result.scripted && <SentenceHighlight words={result.words} />}
+
       <div
         className={
           'grid grid-cols-2 gap-3 ' + (metrics.length >= 4 ? 'sm:grid-cols-4' : 'sm:grid-cols-3')
