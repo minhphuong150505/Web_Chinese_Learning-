@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import Icon from '../../../components/Icon';
 import { useLanguage } from '../../../i18n/LanguageProvider';
 import type { HskLevelData, MaterialRef } from '../types';
 import { materialUrl } from '../lib/materialUrl';
+
+// pdf.js is heavy (~1 MB); load it only when a user actually opens the materials.
+const PdfViewer = lazy(() => import('./PdfViewer'));
 
 interface MaterialsPanelProps {
   level: HskLevelData;
@@ -41,8 +44,6 @@ export default function MaterialsPanel({ level, request }: MaterialsPanelProps) 
 
   if (!active) return null;
 
-  const src = materialUrl(active.file) + (page ? `#page=${page}&toolbar=1` : '');
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
@@ -75,14 +76,20 @@ export default function MaterialsPanel({ level, request }: MaterialsPanelProps) 
         </a>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-        <iframe
-          key={src}
+      <Suspense
+        fallback={
+          <div className="flex h-[68vh] items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-sm text-slate-400">
+            {text('Đang tải trình xem…', 'Loading viewer…')}
+          </div>
+        }
+      >
+        <PdfViewer
+          key={active.id}
+          url={materialUrl(active.file)}
+          initialPage={page}
           title={text(active.labelVi, active.labelEn)}
-          src={src}
-          className="h-[68vh] w-full"
         />
-      </div>
+      </Suspense>
 
       {level.audio && level.audio.length > 0 && (
         <div className="flex flex-col gap-4">
