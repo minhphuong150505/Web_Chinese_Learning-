@@ -5,6 +5,7 @@ import HskBadge from '../../components/HskBadge';
 import { useConversation } from '../../hooks/useConversation';
 import { useSendMessage } from '../../hooks/useSendMessage';
 import { useLanguage, type Language } from '../../i18n/LanguageProvider';
+import { useTargetLanguage } from '../../i18n/TargetLanguageProvider';
 import { CONVERSATION_TOPICS, SPEAKING_MOCK_TESTS, type ConversationPracticeTopic } from '../../lib/content';
 import HskLessonPicker from '../hsk/components/HskLessonPicker';
 import { lessonConversationRequest, type HskPracticeLesson } from '../hsk/lib/practiceTree';
@@ -39,7 +40,10 @@ type SetupMode = 'hsk' | 'custom' | 'mock';
 
 function ConversationSetup({ pending, error, onCreate, onCancel }: ConversationSetupProps) {
   const { language, text } = useLanguage();
-  const [mode, setMode] = useState<SetupMode>('hsk');
+  const { target } = useTargetLanguage();
+  // English practice has no HSK lessons or HSKK mock tests — only free scenarios.
+  const isZh = target === 'zh';
+  const [mode, setMode] = useState<SetupMode>(isZh ? 'hsk' : 'custom');
   const [lesson, setLesson] = useState<HskPracticeLesson | null>(null);
   const [mockId, setMockId] = useState<string | null>(null);
   const [customTitle, setCustomTitle] = useState('');
@@ -109,23 +113,25 @@ function ConversationSetup({ pending, error, onCreate, onCancel }: ConversationS
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
-        {TAB.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setMode(item.id)}
-            aria-pressed={mode === item.id}
-            className={
-              'inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[13px] font-bold transition ' +
-              (mode === item.id ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500 hover:text-slate-700')
-            }
-          >
-            <Icon name={item.icon} size={14} />
-            {language === 'vi' ? item.labelVi : item.labelEn}
-          </button>
-        ))}
-      </div>
+      {isZh && (
+        <div className="mt-4 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
+          {TAB.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setMode(item.id)}
+              aria-pressed={mode === item.id}
+              className={
+                'inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[13px] font-bold transition ' +
+                (mode === item.id ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500 hover:text-slate-700')
+              }
+            >
+              <Icon name={item.icon} size={14} />
+              {language === 'vi' ? item.labelVi : item.labelEn}
+            </button>
+          ))}
+        </div>
+      )}
 
       {mode === 'hsk' && (
         <div className="mt-4">
@@ -255,6 +261,7 @@ function ConversationSetup({ pending, error, onCreate, onCancel }: ConversationS
 
 export default function ChatTab() {
   const { language, text } = useLanguage();
+  const { target } = useTargetLanguage();
   const [soundOn, setSoundOn] = useState(true);
   const [voiceChatOpen, setVoiceChatOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
@@ -312,7 +319,10 @@ export default function ChatTab() {
   );
 
   function createPractice(req: CreateConversationRequest) {
-    createConversation.mutate(req, { onSuccess: () => setSetupOpen(false) });
+    createConversation.mutate(
+      { ...req, lang: req.lang ?? target },
+      { onSuccess: () => setSetupOpen(false) },
+    );
   }
 
   useEffect(() => {
@@ -333,7 +343,9 @@ export default function ChatTab() {
           <h2 className="mt-1 flex items-center gap-2 text-[26px] font-extrabold tracking-tight text-slate-900">
             {selectedConversationTitle ?? text('Chọn bài luyện tập', 'Choose a practice')}
             {selectedConversationLevel && <HskBadge level={selectedConversationLevel} />}
-            <span className="font-zh text-[22px] font-semibold text-slate-400">练习</span>
+            {target === 'zh' && (
+              <span className="font-zh text-[22px] font-semibold text-slate-400">练习</span>
+            )}
           </h2>
         </div>
         <div className="flex items-center gap-2.5">

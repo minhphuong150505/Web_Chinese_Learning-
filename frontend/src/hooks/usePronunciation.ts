@@ -9,10 +9,12 @@ export function useAssessPronunciation() {
       blob,
       referenceText,
       audioConsent = false,
+      lang = 'zh',
     }: {
       blob: Blob;
       referenceText: string;
       audioConsent?: boolean;
+      lang?: string;
     }) => {
       const fd = new FormData();
       fd.append('audio', blob, 'recording.webm');
@@ -20,6 +22,8 @@ export function useAssessPronunciation() {
       // Round 26 Phase 0: only sent true when the learner opted in to contribute
       // their recording to the tone-grading dataset.
       fd.append('audioConsent', String(audioConsent));
+      // Target language: 'zh' runs the tone engine; 'en' (etc.) uses Azure only.
+      fd.append('lang', lang);
       const r = await apiClient.post<PronunciationResponse>('/pronunciation/assess', fd);
       return r.data;
     },

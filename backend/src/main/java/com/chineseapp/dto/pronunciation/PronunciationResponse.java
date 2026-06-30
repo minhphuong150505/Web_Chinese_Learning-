@@ -10,6 +10,9 @@ import java.util.UUID;
  *                     {@code completeness} is {@code null} because there is no
  *                     reference to measure completeness against.
  * @param completeness {@code null} for unscripted attempts; see {@code scripted}.
+ * @param lang         target-language code of the attempt ({@code zh}, {@code en}, …).
+ *                     Tells the UI whether to render pinyin/tone columns (only for
+ *                     {@code zh}).
  */
 public record PronunciationResponse(
     UUID id,
@@ -21,6 +24,7 @@ public record PronunciationResponse(
     Double prosody,
     double pronScore,
     boolean scripted,
+    String lang,
     List<WordScore> words,
     Instant createdAt
 ) {}

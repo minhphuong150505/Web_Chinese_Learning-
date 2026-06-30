@@ -50,7 +50,7 @@ const BAND_WORD_BG: Record<string, string> = {
 
 /** Replays the sentence with each word tinted by its accuracy so the learner can
  * see at a glance where they went wrong: red = many errors, amber = minor, green = correct. */
-function SentenceHighlight({ words }: { words: WordScore[] }) {
+function SentenceHighlight({ words, isZh }: { words: WordScore[]; isZh: boolean }) {
   const { text } = useLanguage();
   const spoken = words.filter((w) => w.word.trim());
   if (spoken.length === 0) return null;
@@ -65,7 +65,7 @@ function SentenceHighlight({ words }: { words: WordScore[] }) {
           {text('Màu = độ chính xác của từ', 'Color = per-word accuracy')}
         </span>
       </div>
-      <div className="font-zh text-[26px] leading-[1.7]">
+      <div className={(isZh ? 'font-zh ' : '') + 'text-[26px] leading-[1.7]'}>
         {spoken.map((w, i) => {
           const b = band(w.accuracyScore);
           return (
@@ -74,6 +74,7 @@ function SentenceHighlight({ words }: { words: WordScore[] }) {
               title={`${Math.round(w.accuracyScore)}/100`}
               className={'rounded px-0.5 font-semibold ' + BAND_TEXT[b] + ' ' + BAND_WORD_BG[b]}
             >
+              {i > 0 && !isZh ? ' ' : ''}
               {w.word}
             </span>
           );
@@ -132,7 +133,10 @@ export default function ScorePanel({ result }: ScorePanelProps) {
     });
   }
 
-  const tips = toneTips(result.words, language);
+  // Pinyin/tone breakdown only applies to Mandarin; non-tonal languages (English)
+  // show just the Azure metrics and the per-word accuracy highlight.
+  const isZh = result.lang === 'zh';
+  const tips = isZh ? toneTips(result.words, language) : [];
   const toneNames = language === 'vi' ? MANDARIN_TONE_VI : MANDARIN_TONE_EN;
 
   const overallBand = band(result.pronScore);
@@ -156,7 +160,7 @@ export default function ScorePanel({ result }: ScorePanelProps) {
         </p>
       </div>
 
-      {result.scripted && <SentenceHighlight words={result.words} />}
+      {result.scripted && <SentenceHighlight words={result.words} isZh={isZh} />}
 
       <div
         className={
@@ -168,25 +172,27 @@ export default function ScorePanel({ result }: ScorePanelProps) {
         ))}
       </div>
 
-      <div>
-        <div className="mb-2.5 flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            {text('Chi tiết từng âm tiết', 'Syllable details')}
-          </span>
-          <span className="text-[11px] text-slate-400">
-            {text('Màu = thanh điệu cần đọc', 'Color = target tone')}
-          </span>
-        </div>
-        <SyllableBreakdown words={result.words} />
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
-          {TONE_LEGEND.map((t) => (
-            <span key={t} className="flex items-center gap-1">
-              <i className={'font-bold ' + TONE_LEGEND_TEXT[t]}>●</i>
-              {toneNames[t]}
+      {isZh && (
+        <div>
+          <div className="mb-2.5 flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              {text('Chi tiết từng âm tiết', 'Syllable details')}
             </span>
-          ))}
+            <span className="text-[11px] text-slate-400">
+              {text('Màu = thanh điệu cần đọc', 'Color = target tone')}
+            </span>
+          </div>
+          <SyllableBreakdown words={result.words} />
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+            {TONE_LEGEND.map((t) => (
+              <span key={t} className="flex items-center gap-1">
+                <i className={'font-bold ' + TONE_LEGEND_TEXT[t]}>●</i>
+                {toneNames[t]}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {tips.length > 0 && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">

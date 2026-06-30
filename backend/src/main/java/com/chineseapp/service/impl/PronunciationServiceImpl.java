@@ -63,21 +63,33 @@ public class PronunciationServiceImpl implements PronunciationService {
 
     @Override
     public PronunciationResponse assess(UUID userId, MultipartFile audio, String referenceText, boolean audioConsent) {
-        return assessInternal(userId, audio, referenceText, false, audioConsent);
+        return assess(userId, audio, referenceText, audioConsent, "zh");
+    }
+
+    @Override
+    public PronunciationResponse assess(UUID userId, MultipartFile audio, String referenceText,
+                                        boolean audioConsent, String lang) {
+        return assessInternal(userId, audio, referenceText, false, audioConsent, lang);
     }
 
     @Override
     public PronunciationResponse assessUnscripted(UUID userId, MultipartFile audio) {
+        return assessUnscripted(userId, audio, "zh");
+    }
+
+    @Override
+    public PronunciationResponse assessUnscripted(UUID userId, MultipartFile audio, String lang) {
         // Free-speech turns have no reference text, so they can't auto-label the
         // target tone — we never collect them for the corpus.
-        return assessInternal(userId, audio, "", true, false);
+        return assessInternal(userId, audio, "", true, false, lang);
     }
 
     private PronunciationResponse assessInternal(UUID userId,
                                                   MultipartFile audio,
                                                   String referenceText,
                                                   boolean unscripted,
-                                                  boolean audioConsent) {
+                                                  boolean audioConsent,
+                                                  String lang) {
         File webm = null;
         File wav = null;
         try {
@@ -86,10 +98,14 @@ public class PronunciationServiceImpl implements PronunciationService {
             wav = audioConv.toWav16kMono(webm);
 
             AssessmentRawResult raw = unscripted
-                ? azure.assessUnscripted(wav)
-                : azure.assess(wav, referenceText);
+                ? azure.assessUnscripted(wav, lang)
+                : azure.assess(wav, referenceText, lang);
 
-            List<WordScore> words = parseWordScores(raw.detailedJson(), wav);
+            // Mandarin is the only tonal language we score; for other languages
+            // (e.g. English) Azure's metrics stand on their own and the F0 tone
+            // engine is skipped.
+            boolean enrichTone = "zh".equals(lang);
+            List<WordScore> words = parseWordScores(raw.detailedJson(), wav, enrichTone);
             String storedReferenceText = unscripted ? raw.recognizedText() : referenceText;
             boolean scripted = !unscripted;
             ScoredAssessment scored = scoreAssessment(raw);
@@ -114,6 +130,7 @@ public class PronunciationServiceImpl implements PronunciationService {
                 toScale2(scored.pron()),
                 writeWordsJson(words),
                 scripted,
+                lang,
                 audioConsent,
                 audioPath,
                 retentionUntil,
@@ -142,12 +159,18 @@ public class PronunciationServiceImpl implements PronunciationService {
     }
 
     /**
-     * Parses Azure's per-word breakdown and enriches each syllable with a
-     * Mandarin tone score from the F0 pitch-contour engine. Tone enrichment is
+     * Parses Azure's per-word breakdown. When {@code enrichTone} is set (Mandarin),
+     * each syllable is also scored by the F0 pitch-contour engine; otherwise the
+     * tone fields stay null and the engine is not called at all (non-tonal
+     * languages such as English rely on Azure's metrics alone). Tone enrichment is
      * best-effort: if the engine returns nothing, syllables keep null tone fields.
      */
-    private List<WordScore> parseWordScores(String detailedJson, File wav) {
+    private List<WordScore> parseWordScores(String detailedJson, File wav, boolean enrichTone) {
         List<RawWord> rawWords = parseRawWords(detailedJson);
+
+        if (!enrichTone) {
+            return rawWords.stream().map(this::toWordScoreWithoutTone).toList();
+        }
 
         // Flatten syllables across all words and ask the tone engine to score
         // them in one call, then map the results back by position.
@@ -183,6 +206,15 @@ public class PronunciationServiceImpl implements PronunciationService {
             words.add(new WordScore(word.word, word.accuracy, word.errorType, syllables, word.phonemes));
         }
         return words;
+    }
+
+    /** Builds a word's scores from Azure data only, leaving all tone fields null. */
+    private WordScore toWordScoreWithoutTone(RawWord word) {
+        List<SyllableScore> syllables = new ArrayList<>();
+        for (RawSyllable syl : word.syllables) {
+            syllables.add(new SyllableScore(syl.syllable, syl.accuracy, null, null, null));
+        }
+        return new WordScore(word.word, word.accuracy, word.errorType, syllables, word.phonemes);
     }
 
     private List<RawWord> parseRawWords(String detailedJson) {
@@ -303,6 +335,7 @@ public class PronunciationServiceImpl implements PronunciationService {
             score.getProsodyScore() == null ? null : score.getProsodyScore().doubleValue(),
             score.getPronScore().doubleValue(),
             score.isScripted(),
+            score.getLang(),
             words,
             score.getCreatedAt()
         );

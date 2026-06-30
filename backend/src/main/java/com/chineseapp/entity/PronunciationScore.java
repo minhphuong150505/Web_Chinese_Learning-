@@ -50,6 +50,11 @@ public class PronunciationScore {
     @Column(name = "scripted", nullable = false)
     private boolean scripted;
 
+    // Target-language code of the attempt ("zh", "en", …). Drives whether the
+    // Mandarin tone engine ran and whether the UI shows pinyin/tone columns.
+    @Column(name = "lang", nullable = false)
+    private String lang;
+
     // Round 26 Phase 0 corpus collection. audioConsent records whether the learner
     // opted in; audioPath is the stored WAV (null when not collected); audio is
     // purged when audioRetentionUntil passes.
@@ -79,6 +84,7 @@ public class PronunciationScore {
                               BigDecimal pronScore,
                               String wordDetailsJson,
                               boolean scripted,
+                              String lang,
                               boolean audioConsent,
                               String audioPath,
                               Instant audioRetentionUntil,
@@ -94,6 +100,7 @@ public class PronunciationScore {
         this.pronScore = pronScore;
         this.wordDetailsJson = wordDetailsJson;
         this.scripted = scripted;
+        this.lang = lang;
         this.audioConsent = audioConsent;
         this.audioPath = audioPath;
         this.audioRetentionUntil = audioRetentionUntil;
@@ -142,6 +149,10 @@ public class PronunciationScore {
 
     public boolean isScripted() {
         return scripted;
+    }
+
+    public String getLang() {
+        return lang;
     }
 
     public boolean isAudioConsent() {

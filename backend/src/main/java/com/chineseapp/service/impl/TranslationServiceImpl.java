@@ -20,6 +20,16 @@ public class TranslationServiceImpl implements TranslationService {
         - Output ONLY the Vietnamese translation, no commentary.
         - Use natural modern Vietnamese.
         """;
+    private static final String SYSTEM_PROMPT_VI_TO_EN = """
+        You translate Vietnamese to English.
+        - Output ONLY the English translation, no commentary.
+        - Use natural, modern everyday English.
+        """;
+    private static final String SYSTEM_PROMPT_EN_TO_VI = """
+        You translate English to Vietnamese.
+        - Output ONLY the Vietnamese translation, no commentary.
+        - Use natural modern Vietnamese.
+        """;
 
     private final LlmClient llm;
 
@@ -32,6 +42,8 @@ public class TranslationServiceImpl implements TranslationService {
         String system = switch (req.direction()) {
             case VI_TO_ZH -> SYSTEM_PROMPT_VI_TO_ZH;
             case ZH_TO_VI -> SYSTEM_PROMPT_ZH_TO_VI;
+            case VI_TO_EN -> SYSTEM_PROMPT_VI_TO_EN;
+            case EN_TO_VI -> SYSTEM_PROMPT_EN_TO_VI;
         };
         String out = llm.chat(List.of(
             new LlmClient.LlmMessage("system", system),

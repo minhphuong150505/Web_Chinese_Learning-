@@ -24,6 +24,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -88,11 +89,12 @@ class PronunciationControllerTest {
             74.0,
             89.5,
             true,
+            "zh",
             List.of(new WordScore("你好", 92.5, "None", List.of(), List.of())),
             Instant.parse("2026-01-01T00:00:00Z")
         );
         UUID mockUserId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-        when(service.assess(eq(mockUserId), any(), eq("你好世界"), anyBoolean())).thenReturn(response);
+        when(service.assess(eq(mockUserId), any(), eq("你好世界"), anyBoolean(), anyString())).thenReturn(response);
 
         MockMultipartFile audio = new MockMultipartFile("audio", "recording.webm", "audio/webm", new byte[]{1, 2, 3});
         mockMvc.perform(multipart("/api/pronunciation/assess")

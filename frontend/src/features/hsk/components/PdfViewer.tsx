@@ -115,8 +115,30 @@ export default function PdfViewer({ url, initialPage, title }: PdfViewerProps) {
         className="flex h-[68vh] justify-center overflow-auto rounded-xl border border-slate-200 bg-slate-100 p-3"
       >
         {error ? (
-          <div className="flex h-full items-center px-6 text-center text-sm text-slate-500">
-            {text('Không tải được tài liệu. Hãy thử mở ở tab mới.', 'Could not load the document. Try opening it in a new tab.')}
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-slate-500">
+            <p>
+              {text(
+                'Không tải được tài liệu. Thử lại, hoặc mở ở tab mới.',
+                'Could not load the document. Retry, or open it in a new tab.',
+              )}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setError(false)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:text-slate-900"
+              >
+                <Icon name="refresh" size={16} /> {text('Thử lại', 'Retry')}
+              </button>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-violet-600 px-3 font-semibold text-white transition-colors hover:bg-violet-700"
+              >
+                <Icon name="eye" size={16} /> {text('Mở ở tab mới', 'Open in new tab')}
+              </a>
+            </div>
           </div>
         ) : (
           <Document

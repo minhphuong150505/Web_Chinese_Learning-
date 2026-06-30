@@ -35,8 +35,13 @@ public class TtsServiceImpl implements TtsService {
 
     @Override
     public String synthesize(String text) {
+        return synthesize(text, null);
+    }
+
+    @Override
+    public String synthesize(String text, String lang) {
         try {
-            byte[] bytes = client.synthesize(text);
+            byte[] bytes = client.synthesize(text, lang);
             String filename = UUID.randomUUID() + ".mp3";
             Files.write(Path.of(props.getStorageDir(), filename), bytes);
             return filename;

@@ -34,11 +34,12 @@ public class PronunciationController {
         @AuthenticationPrincipal CurrentUser user,
         @RequestParam("audio") MultipartFile audio,
         @RequestParam("referenceText") @NotBlank String referenceText,
-        @RequestParam(value = "audioConsent", defaultValue = "false") boolean audioConsent) {
+        @RequestParam(value = "audioConsent", defaultValue = "false") boolean audioConsent,
+        @RequestParam(value = "lang", defaultValue = "zh") String lang) {
         if (audio.isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Empty audio");
         }
-        return ResponseEntity.ok(service.assess(user.id(), audio, referenceText, audioConsent));
+        return ResponseEntity.ok(service.assess(user.id(), audio, referenceText, audioConsent, lang));
     }
 
     @GetMapping("/history")

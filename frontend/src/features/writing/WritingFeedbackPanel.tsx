@@ -1,5 +1,6 @@
 import Hanzi from '../../components/Hanzi';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import { useTargetLanguage } from '../../i18n/TargetLanguageProvider';
 import { toZhTokens } from '../../lib/zh';
 import type { WritingFeedbackResponse, WritingComment } from '../../types/writing';
 
@@ -24,6 +25,7 @@ function CommentCard({ comment }: { comment: WritingComment }) {
 
 export default function WritingFeedbackPanel({ result }: WritingFeedbackPanelProps) {
   const { text } = useLanguage();
+  const { target } = useTargetLanguage();
 
   return (
     <div className="animate-rise flex flex-col gap-5">
@@ -32,7 +34,11 @@ export default function WritingFeedbackPanel({ result }: WritingFeedbackPanelPro
           {text('Bản đã sửa', 'Corrected text')}
         </span>
         <div className="mt-2 rounded-2xl border border-slate-200 bg-white p-5">
-          <Hanzi tokens={toZhTokens(result.correctedText)} className="text-[19px]" />
+          {target === 'zh' ? (
+            <Hanzi tokens={toZhTokens(result.correctedText)} className="text-[19px]" />
+          ) : (
+            <p className="text-[16px] leading-relaxed text-slate-900">{result.correctedText}</p>
+          )}
         </div>
       </div>
       <div>

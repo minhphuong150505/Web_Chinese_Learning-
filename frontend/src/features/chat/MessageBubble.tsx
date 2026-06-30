@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import Icon from '../../components/Icon';
 import Hanzi from '../../components/Hanzi';
 import { toZhTokens } from '../../lib/zh';
+import { useTargetLanguage } from '../../i18n/TargetLanguageProvider';
 import type { Role } from '../../types/chat';
 
 interface MessageBubbleProps {
@@ -31,6 +32,7 @@ export default function MessageBubble({
   onAudioAutoPlayAttempt,
 }: MessageBubbleProps) {
   const isAssistant = role === 'assistant';
+  const { target } = useTargetLanguage();
   const audioRef = useRef<HTMLAudioElement>(null);
   const didAttemptAutoPlay = useRef(false);
 
@@ -74,7 +76,11 @@ export default function MessageBubble({
               : 'rounded-br-[7px] bg-violet-600 text-white shadow-accent')
           }
         >
-          <Hanzi tokens={toZhTokens(content)} className="text-[21px]" />
+          {target === 'zh' ? (
+            <Hanzi tokens={toZhTokens(content)} className="text-[21px]" />
+          ) : (
+            <p className="text-[16px]">{content}</p>
+          )}
         </div>
         {isAssistant && audioUrl && soundOn && (
           <audio

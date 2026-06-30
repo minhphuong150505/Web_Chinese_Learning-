@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Hanzi from '../../components/Hanzi';
 import Icon from '../../components/Icon';
 import Spinner from '../../components/Spinner';
@@ -6,6 +6,7 @@ import HskBadge from '../../components/HskBadge';
 import { toZhTokens } from '../../lib/zh';
 import { useWritingFeedback, useWritingPrompt } from '../../hooks/useWritingFeedback';
 import { useLanguage, type Language } from '../../i18n/LanguageProvider';
+import { useTargetLanguage } from '../../i18n/TargetLanguageProvider';
 import {
   WRITING_MOCK_TESTS,
   WRITING_PROMPT_TEXT,
@@ -31,6 +32,20 @@ function savedWritingTitle(title: string, language: Language) {
   return topic ? writingTopicTitle(topic, language) : title;
 }
 
+const EN_DEFAULT_PROMPT: WritingPromptResponse = {
+  title: 'A short workplace email',
+  promptText:
+    'Write a short email (3-5 sentences) to a coworker to reschedule a meeting. Explain why, and suggest a new time.',
+  level: 'TOEIC',
+};
+
+/** The starting prompt shown before the learner generates their own task. */
+function defaultWritingPrompt(target: string): WritingPromptResponse {
+  return target === 'en'
+    ? EN_DEFAULT_PROMPT
+    : { title: WRITING_PROMPT_TOPIC, promptText: WRITING_PROMPT_TEXT, level: 'HSK 2' };
+}
+
 /** Either generate a prompt via the LLM (HSK lessons + custom), or use a fixed
  * exam prompt directly (mock tests, which must keep their exact exam format). */
 type WritingCreate =
@@ -48,7 +63,10 @@ type WritingSetupMode = 'hsk' | 'custom' | 'mock';
 
 function WritingSetup({ pending, error, onCreate, onCancel }: WritingSetupProps) {
   const { language, text } = useLanguage();
-  const [mode, setMode] = useState<WritingSetupMode>('hsk');
+  const { target } = useTargetLanguage();
+  // English writing has no HSK lessons or HSK mock tests — only free tasks.
+  const isZh = target === 'zh';
+  const [mode, setMode] = useState<WritingSetupMode>(isZh ? 'hsk' : 'custom');
   const [lesson, setLesson] = useState<HskPracticeLesson | null>(null);
   const [mockId, setMockId] = useState<string | null>(null);
   const [customTitle, setCustomTitle] = useState('');
@@ -76,7 +94,9 @@ function WritingSetup({ pending, error, onCreate, onCancel }: WritingSetupProps)
     }
     const title = customTitle.trim();
     const context = customContext.trim();
-    if (title && context) onCreate({ kind: 'api', title, request: { topicTitle: title, context } });
+    if (title && context) {
+      onCreate({ kind: 'api', title, request: { topicTitle: title, context, lang: target } });
+    }
   }
 
   const ready =
@@ -122,23 +142,25 @@ function WritingSetup({ pending, error, onCreate, onCancel }: WritingSetupProps)
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
-        {TAB.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setMode(item.id)}
-            aria-pressed={mode === item.id}
-            className={
-              'inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[13px] font-bold transition ' +
-              (mode === item.id ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500 hover:text-slate-700')
-            }
-          >
-            <Icon name={item.icon} size={14} />
-            {language === 'vi' ? item.labelVi : item.labelEn}
-          </button>
-        ))}
-      </div>
+      {isZh && (
+        <div className="mt-4 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
+          {TAB.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setMode(item.id)}
+              aria-pressed={mode === item.id}
+              className={
+                'inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[13px] font-bold transition ' +
+                (mode === item.id ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500 hover:text-slate-700')
+              }
+            >
+              <Icon name={item.icon} size={14} />
+              {language === 'vi' ? item.labelVi : item.labelEn}
+            </button>
+          ))}
+        </div>
+      )}
 
       {mode === 'hsk' && (
         <div className="mt-4">
@@ -236,10 +258,15 @@ function WritingSetup({ pending, error, onCreate, onCancel }: WritingSetupProps)
             />
             <div className="mt-1 flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-400">
               <span>
-                {text(
-                  'LLM sẽ tạo đề viết tiếng Trung từ mô tả này.',
-                  'The LLM will create a Chinese writing prompt from this context.',
-                )}
+                {isZh
+                  ? text(
+                      'LLM sẽ tạo đề viết tiếng Trung từ mô tả này.',
+                      'The LLM will create a Chinese writing prompt from this context.',
+                    )
+                  : text(
+                      'LLM sẽ tạo đề viết tiếng Anh (TOEIC) từ mô tả này.',
+                      'The LLM will create an English (TOEIC) writing prompt from this context.',
+                    )}
               </span>
               <span className="flex-none">{customContext.length}/1200</span>
             </div>
@@ -266,20 +293,28 @@ function WritingSetup({ pending, error, onCreate, onCancel }: WritingSetupProps)
 
 export default function WritingTab() {
   const { language, text: uiText } = useLanguage();
-  const [activePrompt, setActivePrompt] = useState<WritingPromptResponse>({
-    title: WRITING_PROMPT_TOPIC,
-    promptText: WRITING_PROMPT_TEXT,
-    level: 'HSK 2',
-  });
+  const { target } = useTargetLanguage();
+  const isZh = target === 'zh';
+  const [activePrompt, setActivePrompt] = useState<WritingPromptResponse>(() => defaultWritingPrompt(target));
   const [topic, setTopic] = useState(() => savedWritingTitle(activePrompt.title, language));
   const [text, setText] = useState('');
   const [setupOpen, setSetupOpen] = useState(false);
   const feedback = useWritingFeedback();
   const prompt = useWritingPrompt();
 
+  // Switching practice language swaps to that language's starter prompt and clears the draft.
+  useEffect(() => {
+    const next = defaultWritingPrompt(target);
+    setActivePrompt(next);
+    setTopic(savedWritingTitle(next.title, language));
+    setText('');
+    feedback.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+
   function submit() {
     if (!text.trim() || feedback.isPending) return;
-    feedback.mutate({ text: text.trim(), topic: topic.trim() || null });
+    feedback.mutate({ text: text.trim(), topic: topic.trim() || null, lang: target });
   }
 
   function applyPrompt(data: WritingPromptResponse, title: string) {
@@ -295,9 +330,10 @@ export default function WritingTab() {
       applyPrompt(payload.prompt, payload.title);
       return;
     }
-    prompt.mutate(payload.request, {
-      onSuccess: (data) => applyPrompt(data, payload.title),
-    });
+    prompt.mutate(
+      { ...payload.request, lang: payload.request.lang ?? target },
+      { onSuccess: (data) => applyPrompt(data, payload.title) },
+    );
   }
 
   return (
@@ -311,7 +347,7 @@ export default function WritingTab() {
             <h2 className="mt-1 flex items-center gap-2 text-[26px] font-extrabold tracking-tight text-slate-900">
               {savedWritingTitle(activePrompt.title, language)}
               <HskBadge label={activePrompt.level} />
-              <span className="font-zh text-[22px] font-semibold text-slate-400">写作</span>
+              {isZh && <span className="font-zh text-[22px] font-semibold text-slate-400">写作</span>}
             </h2>
           </div>
           <button
@@ -335,9 +371,15 @@ export default function WritingTab() {
             <HskBadge label={activePrompt.level} />
           </div>
           <div className="mt-1.5 space-y-1 text-[16px]">
-            {activePrompt.promptText.split('\n').map((line, index) => (
-              <Hanzi key={index} tokens={toZhTokens(line)} pinyin={false} className="block" />
-            ))}
+            {activePrompt.promptText.split('\n').map((line, index) =>
+              isZh ? (
+                <Hanzi key={index} tokens={toZhTokens(line)} pinyin={false} className="block" />
+              ) : (
+                <p key={index} className="block">
+                  {line}
+                </p>
+              ),
+            )}
           </div>
         </div>
 
@@ -355,14 +397,19 @@ export default function WritingTab() {
             </label>
             <label className="flex flex-1 flex-col gap-1.5">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {uiText('Bài viết của bạn (tiếng Trung)', 'Your writing (Chinese)')}
+                {isZh
+                  ? uiText('Bài viết của bạn (tiếng Trung)', 'Your writing (Chinese)')
+                  : uiText('Bài viết của bạn (tiếng Anh)', 'Your writing (English)')}
               </span>
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 rows={9}
-                placeholder="写下你的句子……"
-                className="font-zh scroll min-h-[200px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[16px] text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                placeholder={isZh ? '写下你的句子……' : uiText('Viết bài của bạn ở đây…', 'Write your text here…')}
+                className={
+                  (isZh ? 'font-zh ' : '') +
+                  'scroll min-h-[200px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[16px] text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100'
+                }
               />
             </label>
             <button

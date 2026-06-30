@@ -58,7 +58,7 @@ class PronunciationServiceImplTest {
             when(audioConv.toWav16kMono(any(File.class))).thenReturn(wav);
 
             String detailedJson = readSampleJson();
-            when(azure.assess(any(File.class), anyString())).thenReturn(new AssessmentRawResult(
+            when(azure.assess(any(File.class), anyString(), anyString())).thenReturn(new AssessmentRawResult(
                 "你好世界", 90.0, 88.0, 100.0, 89.5, 89.5, detailedJson
             ));
             when(repo.save(any(PronunciationScore.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -106,7 +106,7 @@ class PronunciationServiceImplTest {
             // that into its overall PronScore via the documented weighted-lowest
             // formula (0.4·s0 + 0.2·s1 + 0.2·s2 + 0.2·s3, here ≈ 76). We must
             // surface these standard scores unchanged — no custom re-scaling.
-            when(azure.assess(any(File.class), anyString())).thenReturn(new AssessmentRawResult(
+            when(azure.assess(any(File.class), anyString(), anyString())).thenReturn(new AssessmentRawResult(
                 "你好", 100.0, 90.0, 50.0, 88.0, 76.0, readSampleJson()
             ));
             when(repo.save(any(PronunciationScore.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -142,7 +142,7 @@ class PronunciationServiceImplTest {
         File wav = File.createTempFile("test-tone-", ".wav");
         try {
             when(audioConv.toWav16kMono(any(File.class))).thenReturn(wav);
-            when(azure.assess(any(File.class), anyString())).thenReturn(new AssessmentRawResult(
+            when(azure.assess(any(File.class), anyString(), anyString())).thenReturn(new AssessmentRawResult(
                 "你好世界", 90.0, 88.0, 100.0, 89.5, 89.5, readSampleJson()
             ));
             when(repo.save(any(PronunciationScore.class))).thenAnswer(i -> i.getArgument(0));
@@ -187,7 +187,7 @@ class PronunciationServiceImplTest {
         File wav = File.createTempFile("test-timing-", ".wav");
         try {
             when(audioConv.toWav16kMono(any(File.class))).thenReturn(wav);
-            when(azure.assess(any(File.class), anyString())).thenReturn(new AssessmentRawResult(
+            when(azure.assess(any(File.class), anyString(), anyString())).thenReturn(new AssessmentRawResult(
                 "你好世界", 90.0, 88.0, 100.0, 89.5, 89.5, readSampleJson()
             ));
             when(repo.save(any(PronunciationScore.class))).thenAnswer(i -> i.getArgument(0));
@@ -230,7 +230,7 @@ class PronunciationServiceImplTest {
         File wav = File.createTempFile("test-unscripted-", ".wav");
         try {
             when(audioConv.toWav16kMono(any(File.class))).thenReturn(wav);
-            when(azure.assessUnscripted(wav)).thenReturn(new AssessmentRawResult(
+            when(azure.assessUnscripted(any(File.class), anyString())).thenReturn(new AssessmentRawResult(
                 "我要一杯茶。", 91, 87, 0, null, 89, readSampleJson()
             ));
             when(repo.save(any(PronunciationScore.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -245,7 +245,7 @@ class PronunciationServiceImplTest {
             // Unscripted: completeness is meaningless and is reported as null.
             assertThat(response.scripted()).isFalse();
             assertThat(response.completeness()).isNull();
-            verify(azure).assessUnscripted(wav);
+            verify(azure).assessUnscripted(any(File.class), anyString());
         } finally {
             Files.deleteIfExists(wav.toPath());
         }
@@ -265,7 +265,7 @@ class PronunciationServiceImplTest {
         File wav = File.createTempFile("test-consent-", ".wav");
         try {
             when(audioConv.toWav16kMono(any(File.class))).thenReturn(wav);
-            when(azure.assess(any(File.class), anyString())).thenReturn(new AssessmentRawResult(
+            when(azure.assess(any(File.class), anyString(), anyString())).thenReturn(new AssessmentRawResult(
                 "你好世界", 90.0, 88.0, 100.0, 89.5, 89.5, readSampleJson()
             ));
             when(repo.save(any(PronunciationScore.class))).thenAnswer(i -> i.getArgument(0));
@@ -307,7 +307,7 @@ class PronunciationServiceImplTest {
         File wav = File.createTempFile("test-noconsent-", ".wav");
         try {
             when(audioConv.toWav16kMono(any(File.class))).thenReturn(wav);
-            when(azure.assess(any(File.class), anyString())).thenReturn(new AssessmentRawResult(
+            when(azure.assess(any(File.class), anyString(), anyString())).thenReturn(new AssessmentRawResult(
                 "你好世界", 90.0, 88.0, 100.0, 89.5, 89.5, readSampleJson()
             ));
             when(repo.save(any(PronunciationScore.class))).thenAnswer(i -> i.getArgument(0));

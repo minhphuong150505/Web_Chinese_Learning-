@@ -29,21 +29,29 @@ public class AzureSpeechClient {
     }
 
     public AssessmentRawResult assess(File wav, String referenceText) {
-        return assess(wav, referenceText, true);
+        return assess(wav, referenceText, null);
+    }
+
+    public AssessmentRawResult assess(File wav, String referenceText, String lang) {
+        return assess(wav, referenceText, true, lang);
     }
 
     public AssessmentRawResult assessUnscripted(File wav) {
-        return assess(wav, "", false);
+        return assessUnscripted(wav, null);
     }
 
-    private AssessmentRawResult assess(File wav, String referenceText, boolean enableMiscue) {
+    public AssessmentRawResult assessUnscripted(File wav, String lang) {
+        return assess(wav, "", false, lang);
+    }
+
+    private AssessmentRawResult assess(File wav, String referenceText, boolean enableMiscue, String lang) {
         if (!StringUtils.hasText(props.getKey()) || !StringUtils.hasText(props.getRegion())) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "Azure Speech is not configured");
         }
 
         try (SpeechConfig speechConfig = SpeechConfig.fromSubscription(props.getKey(), props.getRegion());
              AudioConfig audioConfig = AudioConfig.fromWavFileInput(wav.getAbsolutePath());
-             SpeechRecognizer recognizer = new SpeechRecognizer(speechConfig, props.getLanguage(), audioConfig);
+             SpeechRecognizer recognizer = new SpeechRecognizer(speechConfig, props.resolveLocale(lang), audioConfig);
              PronunciationAssessmentConfig assessmentConfig = new PronunciationAssessmentConfig(
                  referenceText,
                  PronunciationAssessmentGradingSystem.HundredMark,

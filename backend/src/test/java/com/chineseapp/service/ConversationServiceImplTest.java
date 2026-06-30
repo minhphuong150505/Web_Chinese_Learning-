@@ -28,6 +28,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,7 +53,7 @@ class ConversationServiceImplTest {
             {"systemContext":"Role-play as a potential business partner at a trade fair.",
              "openingMessage":"您好，很高兴认识您。您想介绍什么产品？"}
             """);
-        when(tts.synthesize("您好，很高兴认识您。您想介绍什么产品？")).thenReturn("trade-fair.mp3");
+        when(tts.synthesize(eq("您好，很高兴认识您。您想介绍什么产品？"), anyString())).thenReturn("trade-fair.mp3");
 
         ConversationDto dto = service.createConversation(
             USER_ID,
@@ -102,7 +104,7 @@ class ConversationServiceImplTest {
             {"systemContext":"Act as an HSKK examiner for this lesson.",
              "openingMessage":"你好！你叫什么名字？"}
             """);
-        when(tts.synthesize(any())).thenReturn("hsk.mp3");
+        when(tts.synthesize(any(), anyString())).thenReturn("hsk.mp3");
 
         service.createConversation(
             USER_ID,
@@ -164,7 +166,7 @@ class ConversationServiceImplTest {
             new Message(UUID.randomUUID(), conversation, "assistant", "您好！", null, Instant.parse("2026-01-01T00:00:01Z")),
             new Message(UUID.randomUUID(), conversation, "user", "你好", null, Instant.parse("2026-01-01T00:00:02Z"))
         ));
-        when(tts.synthesize("您好！")).thenReturn("recovered.mp3");
+        when(tts.synthesize(eq("您好！"), anyString())).thenReturn("recovered.mp3");
 
         List<MessageDto> messages = service.listMessages(USER_ID, conversation.getId());
 
@@ -199,7 +201,7 @@ class ConversationServiceImplTest {
         when(msgRepo.findByConversationOrderByCreatedAtAsc(conversation))
             .thenAnswer(invocation -> List.copyOf(savedMessages));
         when(llm.chat(any())).thenReturn("你好！你今天想聊什么？");
-        when(tts.synthesize("你好！你今天想聊什么？")).thenReturn("abc.mp3");
+        when(tts.synthesize(eq("你好！你今天想聊什么？"), anyString())).thenReturn("abc.mp3");
 
         ChatResponse response = service.sendMessage(USER_ID, conversation.getId(), "你好");
 
@@ -250,7 +252,7 @@ class ConversationServiceImplTest {
         when(msgRepo.findByConversationOrderByCreatedAtAsc(conversation))
             .thenAnswer(invocation -> List.copyOf(savedMessages));
         when(llm.chat(any())).thenReturn("你好！");
-        when(tts.synthesize("你好！")).thenReturn(null);
+        when(tts.synthesize(eq("你好！"), anyString())).thenReturn(null);
 
         ChatResponse response = service.sendMessage(USER_ID, conversation.getId(), "你好");
 
@@ -337,12 +339,13 @@ class ConversationServiceImplTest {
             null,
             89,
             false,
+            "zh",
             List.of(),
             Instant.parse("2026-01-01T00:00:00Z")
         );
 
         when(convRepo.findByIdAndUserId(conversation.getId(), USER_ID)).thenReturn(Optional.of(conversation));
-        when(pronunciation.assessUnscripted(USER_ID, audio)).thenReturn(assessment);
+        when(pronunciation.assessUnscripted(eq(USER_ID), eq(audio), anyString())).thenReturn(assessment);
         when(msgRepo.save(any(Message.class))).thenAnswer(invocation -> {
             Message message = invocation.getArgument(0);
             savedMessages.add(message);
@@ -354,7 +357,7 @@ class ConversationServiceImplTest {
             {"reply":"有的，您想要热的还是冰的？","contextScore":96,"grammarScore":93,
              "feedback":"Câu trả lời đúng ngữ cảnh và tự nhiên.","suggestedReply":""}
             """);
-        when(tts.synthesize("有的，您想要热的还是冰的？")).thenReturn("voice.mp3");
+        when(tts.synthesize(eq("有的，您想要热的还是冰的？"), anyString())).thenReturn("voice.mp3");
 
         VoiceTurnResponse response = service.sendVoiceTurn(USER_ID, conversation.getId(), audio);
 
@@ -365,7 +368,7 @@ class ConversationServiceImplTest {
         assertThat(response.contextScore()).isEqualTo(96);
         assertThat(response.grammarScore()).isEqualTo(93);
         assertThat(response.feedback()).contains("đúng ngữ cảnh");
-        verify(pronunciation).assessUnscripted(USER_ID, audio);
+        verify(pronunciation).assessUnscripted(eq(USER_ID), eq(audio), anyString());
         verify(convRepo).save(conversation);
     }
 
@@ -391,11 +394,11 @@ class ConversationServiceImplTest {
         );
         PronunciationResponse assessment = new PronunciationResponse(
             UUID.randomUUID(), "我要一杯茶。", "我要一杯茶。", 90, 88, null, null, 89,
-            false, List.of(), Instant.parse("2026-01-01T00:00:00Z")
+            false, "zh", List.of(), Instant.parse("2026-01-01T00:00:00Z")
         );
 
         when(convRepo.findByIdAndUserId(conversation.getId(), USER_ID)).thenReturn(Optional.of(conversation));
-        when(pronunciation.assessUnscripted(USER_ID, audio)).thenReturn(assessment);
+        when(pronunciation.assessUnscripted(eq(USER_ID), eq(audio), anyString())).thenReturn(assessment);
         when(msgRepo.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(msgRepo.findByConversationOrderByCreatedAtAsc(conversation))
             .thenReturn(List.of(new Message(
@@ -404,7 +407,7 @@ class ConversationServiceImplTest {
         when(llm.chat(any())).thenReturn(
             "{\"reply\":\"好的，请稍等。\",\"contextScore\":95,\"grammarScore\":"
         );
-        when(tts.synthesize("好的，请稍等。")).thenReturn("fallback.mp3");
+        when(tts.synthesize(eq("好的，请稍等。"), anyString())).thenReturn("fallback.mp3");
 
         VoiceTurnResponse response = service.sendVoiceTurn(USER_ID, conversation.getId(), audio);
 

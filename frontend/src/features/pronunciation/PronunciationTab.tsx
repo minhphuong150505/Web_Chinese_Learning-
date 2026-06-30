@@ -5,6 +5,7 @@ import Spinner from '../../components/Spinner';
 import { toZhTokens } from '../../lib/zh';
 import { useAssessPronunciation, usePronunciationHistory } from '../../hooks/usePronunciation';
 import { useLanguage, type Language } from '../../i18n/LanguageProvider';
+import { useTargetLanguage } from '../../i18n/TargetLanguageProvider';
 import { HSK_LEVELS } from '../hsk/data';
 import type { HskLevelData, Lesson } from '../hsk/types';
 import RecordButton from './RecordButton';
@@ -239,6 +240,101 @@ const HSK_TOPICS = HSK_LEVELS.map(buildHskTopic);
 const STATIC_TOPICS: PronunciationPracticeTopic[] = [...HSK_TOPICS, QUICK_TOPIC];
 const DEFAULT_TOPIC = STATIC_TOPICS.find((topic) => topic.id === DEFAULT_TOPIC_ID) ?? QUICK_TOPIC;
 
+// English practice content. The `zh` field carries "the text to read aloud"
+// regardless of language; `vi`/`en` hold its meaning. TOEIC-oriented topics
+// (workplace + everyday communication) replace the HSK tree for English.
+const EN_TOPICS: PronunciationPracticeTopic[] = [
+  {
+    id: 'en-everyday',
+    titleVi: 'Giao tiếp hằng ngày',
+    titleEn: 'Everyday communication',
+    badgeVi: 'A2-B1',
+    badgeEn: 'A2-B1',
+    descriptionVi: 'Câu ngắn để khởi động phát âm tiếng Anh.',
+    descriptionEn: 'Short warm-up sentences for English pronunciation.',
+    subtopics: [
+      {
+        id: 'en-everyday-basics',
+        titleVi: 'Câu cơ bản',
+        titleEn: 'Basics',
+        descriptionVi: 'Câu giao tiếp ngắn hằng ngày.',
+        descriptionEn: 'Short everyday sentences.',
+        sentences: [
+          {
+            id: 'en-greeting',
+            labelVi: 'Chào hỏi',
+            labelEn: 'Greeting',
+            zh: 'Good morning. How are you today?',
+            vi: 'Chào buổi sáng. Hôm nay bạn thế nào?',
+            en: 'Good morning. How are you today?',
+          },
+          {
+            id: 'en-intro',
+            labelVi: 'Giới thiệu',
+            labelEn: 'Introduction',
+            zh: 'My name is Anna. Nice to meet you.',
+            vi: 'Tôi tên là Anna. Rất vui được gặp bạn.',
+            en: 'My name is Anna. Nice to meet you.',
+          },
+          {
+            id: 'en-repeat',
+            labelVi: 'Nhắc lại',
+            labelEn: 'Repeat',
+            zh: 'Could you please say that again?',
+            vi: 'Bạn có thể nói lại được không?',
+            en: 'Could you please say that again?',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'en-toeic-workplace',
+    titleVi: 'TOEIC · Công sở',
+    titleEn: 'TOEIC · Workplace',
+    badgeVi: 'TOEIC',
+    badgeEn: 'TOEIC',
+    descriptionVi: 'Câu giao tiếp công việc thường gặp trong TOEIC.',
+    descriptionEn: 'Common workplace communication sentences for TOEIC.',
+    subtopics: [
+      {
+        id: 'en-toeic-meetings',
+        titleVi: 'Họp & lịch hẹn',
+        titleEn: 'Meetings & scheduling',
+        descriptionVi: 'Câu dùng khi sắp xếp công việc.',
+        descriptionEn: 'Sentences for scheduling and coordination.',
+        sentences: [
+          {
+            id: 'en-meeting',
+            labelVi: 'Dời họp',
+            labelEn: 'Reschedule',
+            zh: 'Can we reschedule the meeting to next Monday afternoon?',
+            vi: 'Chúng ta dời cuộc họp sang chiều thứ Hai tới được không?',
+            en: 'Can we reschedule the meeting to next Monday afternoon?',
+          },
+          {
+            id: 'en-report',
+            labelVi: 'Báo cáo',
+            labelEn: 'Report',
+            zh: 'I will send you the report by the end of the day.',
+            vi: 'Tôi sẽ gửi bạn báo cáo trước cuối ngày.',
+            en: 'I will send you the report by the end of the day.',
+          },
+          {
+            id: 'en-confirm',
+            labelVi: 'Xác nhận',
+            labelEn: 'Confirm',
+            zh: 'Please confirm whether the shipment has arrived.',
+            vi: 'Vui lòng xác nhận lô hàng đã đến hay chưa.',
+            en: 'Please confirm whether the shipment has arrived.',
+          },
+        ],
+      },
+    ],
+  },
+];
+const EN_DEFAULT_TOPIC = EN_TOPICS[0];
+
 function promptLabel(item: PronunciationPracticeSentence, language: Language): string {
   return language === 'vi' ? item.labelVi : item.labelEn;
 }
@@ -358,7 +454,7 @@ function HistoryRow({ entry }: { entry: PronunciationResponse }) {
         {avg}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate font-zh text-[14px] font-semibold text-slate-700">
+        <div className={(entry.lang === 'zh' ? 'font-zh ' : '') + 'truncate text-[14px] font-semibold text-slate-700'}>
           {entry.referenceText}
         </div>
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12.5px] text-slate-500">
@@ -380,13 +476,17 @@ const CONSENT_KEY = 'pron_audio_consent';
 
 export default function PronunciationTab() {
   const { language, text } = useLanguage();
+  const { target } = useTargetLanguage();
+  const isZh = target === 'zh';
   const [customPrompts, setCustomPrompts] = useState<PronunciationPracticeSentence[]>(loadCustomPrompts);
   const [customSentence, setCustomSentence] = useState('');
   const [customError, setCustomError] = useState('');
   const [selectedTopicId, setSelectedTopicId] = useState(DEFAULT_TOPIC_ID);
   const [selectedSubtopicId, setSelectedSubtopicId] = useState(DEFAULT_SUBTOPIC_ID);
   const [selectedPromptId, setSelectedPromptId] = useState(DEFAULT_PROMPT_ID);
-  const [expandedTopicIds, setExpandedTopicIds] = useState<string[]>([DEFAULT_TOPIC_ID]);
+  // Accordion: only one topic folder is expanded at a time. Opening another
+  // collapses the current one. `null` means every folder is collapsed.
+  const [expandedTopicId, setExpandedTopicId] = useState<string | null>(DEFAULT_TOPIC_ID);
   const [lastBlob, setLastBlob] = useState<Blob | null>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [isPlaying, setPlaying] = useState(false);
@@ -398,11 +498,13 @@ export default function PronunciationTab() {
   const assess = useAssessPronunciation();
   const history = usePronunciationHistory();
   const practiceTopics = useMemo(() => {
+    // English has no HSK tree and (for now) no custom sentences — just its own topics.
+    if (!isZh) return EN_TOPICS;
     if (customPrompts.length === 0) return STATIC_TOPICS;
     return [...STATIC_TOPICS, buildCustomTopic(customPrompts)];
-  }, [customPrompts]);
+  }, [isZh, customPrompts]);
   const selectedTopic = useMemo(
-    () => practiceTopics.find((topic) => topic.id === selectedTopicId) ?? DEFAULT_TOPIC,
+    () => practiceTopics.find((topic) => topic.id === selectedTopicId) ?? practiceTopics[0] ?? DEFAULT_TOPIC,
     [practiceTopics, selectedTopicId],
   );
   const selectedSubtopic = useMemo(
@@ -439,6 +541,22 @@ export default function PronunciationTab() {
     return () => URL.revokeObjectURL(url);
   }, [lastBlob]);
 
+  // Switching practice language swaps the whole topic set, so jump back to the
+  // first topic/sentence of the newly selected language and clear any attempt.
+  useEffect(() => {
+    const topics = isZh ? STATIC_TOPICS : EN_TOPICS;
+    const topic = topics[0];
+    if (!topic) return;
+    const subtopic = firstSubtopic(topic);
+    const prompt = firstPrompt(subtopic);
+    setSelectedTopicId(topic.id);
+    setSelectedSubtopicId(subtopic.id);
+    setSelectedPromptId(prompt.id);
+    setExpandedTopicId(topic.id);
+    resetAttempt();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+
   function toggleConsent(next: boolean) {
     setConsent(next);
     localStorage.setItem(CONSENT_KEY, next ? '1' : '0');
@@ -460,14 +578,14 @@ export default function PronunciationTab() {
     setSelectedTopicId(topic.id);
     setSelectedSubtopicId(subtopic.id);
     setSelectedPromptId(prompt.id);
-    setExpandedTopicIds((ids) => (ids.includes(topic.id) ? ids : [...ids, topic.id]));
+    setExpandedTopicId(topic.id);
     resetAttempt();
   }
 
   function toggleTopicTree(topicId: string) {
-    setExpandedTopicIds((ids) =>
-      ids.includes(topicId) ? ids.filter((id) => id !== topicId) : [...ids, topicId],
-    );
+    // Expanding a folder closes whichever one was open; clicking the open
+    // folder again collapses it.
+    setExpandedTopicId((current) => (current === topicId ? null : topicId));
   }
 
   function selectSubtopic(subtopicId: string) {
@@ -501,7 +619,7 @@ export default function PronunciationTab() {
       setSelectedTopicId(CUSTOM_TOPIC_ID);
       setSelectedSubtopicId(CUSTOM_SUBTOPIC_ID);
       setSelectedPromptId(existing.id);
-      setExpandedTopicIds((ids) => (ids.includes(CUSTOM_TOPIC_ID) ? ids : [...ids, CUSTOM_TOPIC_ID]));
+      setExpandedTopicId(CUSTOM_TOPIC_ID);
       setCustomSentence('');
       setCustomError('');
       resetAttempt();
@@ -523,7 +641,7 @@ export default function PronunciationTab() {
     setSelectedTopicId(CUSTOM_TOPIC_ID);
     setSelectedSubtopicId(CUSTOM_SUBTOPIC_ID);
     setSelectedPromptId(prompt.id);
-    setExpandedTopicIds((ids) => (ids.includes(CUSTOM_TOPIC_ID) ? ids : [...ids, CUSTOM_TOPIC_ID]));
+    setExpandedTopicId(CUSTOM_TOPIC_ID);
     setCustomSentence('');
     setCustomError('');
     resetAttempt();
@@ -547,7 +665,7 @@ export default function PronunciationTab() {
     setPlaying(false);
     setResult(null);
     assess.mutate(
-      { blob: lastBlob, referenceText: selectedPrompt.zh, audioConsent: consent },
+      { blob: lastBlob, referenceText: selectedPrompt.zh, audioConsent: consent, lang: target },
       { onSuccess: (data) => setResult(data) },
     );
   }
@@ -574,13 +692,18 @@ export default function PronunciationTab() {
           </div>
           <h2 className="mt-1 text-[26px] font-extrabold tracking-tight text-slate-900">
             {text('Đọc to câu này', 'Read this sentence aloud')}{' '}
-            <span className="font-zh text-[22px] font-semibold text-slate-400">朗读</span>
+            {isZh && <span className="font-zh text-[22px] font-semibold text-slate-400">朗读</span>}
           </h2>
           <p className="mt-1.5 text-[13.5px] text-slate-500">
-            {text(
-              'Bấm micro, đọc rõ từng chữ. Màu chữ là thanh điệu cần đọc. Sau khi chấm, bạn sẽ thấy điểm từng âm tiết và lỗi thanh điệu cần sửa.',
-              'Tap the microphone and read each word clearly. Text colors show the target tones. After scoring, you will see per-syllable results and tones to improve.',
-            )}
+            {isZh
+              ? text(
+                  'Bấm micro, đọc rõ từng chữ. Màu chữ là thanh điệu cần đọc. Sau khi chấm, bạn sẽ thấy điểm từng âm tiết và lỗi thanh điệu cần sửa.',
+                  'Tap the microphone and read each word clearly. Text colors show the target tones. After scoring, you will see per-syllable results and tones to improve.',
+                )
+              : text(
+                  'Bấm micro và đọc rõ ràng câu tiếng Anh. Sau khi chấm, bạn sẽ thấy điểm phát âm, độ trôi chảy và những từ cần sửa.',
+                  'Tap the microphone and read the English sentence clearly. After scoring, you will see pronunciation, fluency and the words to improve.',
+                )}
           </p>
         </div>
 
@@ -598,7 +721,7 @@ export default function PronunciationTab() {
             <div className="scroll max-h-[calc(100vh-210px)] space-y-1 overflow-y-auto pr-1">
               {practiceTopics.map((topic) => {
                 const activeTopic = topic.id === selectedTopic.id;
-                const open = activeTopic || expandedTopicIds.includes(topic.id);
+                const open = expandedTopicId === topic.id;
                 return (
                   <div key={topic.id} className="rounded-xl">
                     <div
@@ -655,7 +778,7 @@ export default function PronunciationTab() {
                                 setSelectedTopicId(topic.id);
                                 setSelectedSubtopicId(nextSubtopic.id);
                                 setSelectedPromptId(prompt.id);
-                                setExpandedTopicIds((ids) => (ids.includes(topic.id) ? ids : [...ids, topic.id]));
+                                setExpandedTopicId(topic.id);
                                 resetAttempt();
                               }}
                               aria-pressed={activeSubtopic}
@@ -690,11 +813,17 @@ export default function PronunciationTab() {
                 {language === 'vi' ? selectedSubtopic.titleVi : selectedSubtopic.titleEn}
               </span>
               <div className="mt-3">
-                <Hanzi
-                  tokens={toZhTokens(selectedPrompt.zh)}
-                  size={selectedPrompt.zh.length > 18 ? 30 : 40}
-                  className="max-w-full text-center"
-                />
+                {isZh ? (
+                  <Hanzi
+                    tokens={toZhTokens(selectedPrompt.zh)}
+                    size={selectedPrompt.zh.length > 18 ? 30 : 40}
+                    className="max-w-full text-center"
+                  />
+                ) : (
+                  <p className="mx-auto max-w-full text-center text-[24px] font-bold leading-snug text-slate-900">
+                    {selectedPrompt.zh}
+                  </p>
+                )}
               </div>
               <p className="mt-2 text-[14px] text-slate-500">
                 {promptMeaning(selectedPrompt, language)}
@@ -706,7 +835,7 @@ export default function PronunciationTab() {
               )}
             </div>
 
-            <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+            <div className={'mt-5 grid gap-5 ' + (isZh ? 'xl:grid-cols-[minmax(0,1fr)_300px]' : '')}>
               <section>
                 <div className="mb-2.5 flex items-center justify-between gap-3">
                   <div>
@@ -747,7 +876,7 @@ export default function PronunciationTab() {
                             <div className="text-[12px] font-extrabold uppercase tracking-wide text-violet-500">
                               {promptLabel(item, language)}
                             </div>
-                            <div className="mt-1 font-zh text-[20px] font-semibold leading-7 text-slate-900">
+                            <div className={(isZh ? 'font-zh ' : '') + 'mt-1 text-[20px] font-semibold leading-7 text-slate-900'}>
                               {item.zh}
                             </div>
                             <div className="mt-1 text-[12px] leading-5 text-slate-500">
@@ -777,6 +906,7 @@ export default function PronunciationTab() {
                 )}
               </section>
 
+              {isZh && (
               <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-4">
                 <label htmlFor="custom-pronunciation-sentence" className="text-xs font-bold uppercase tracking-wide text-slate-400">
                   {text('Thêm câu luyện', 'Add sentence')}
@@ -806,6 +936,7 @@ export default function PronunciationTab() {
                 </div>
                 {customError && <p className="mt-2 text-[12px] font-semibold text-red-600">{customError}</p>}
               </aside>
+              )}
             </div>
 
         <div className="my-7 flex flex-col items-center gap-4">

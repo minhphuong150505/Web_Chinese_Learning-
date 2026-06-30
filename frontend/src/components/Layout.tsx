@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Icon from './Icon';
 import LanguageToggle from './LanguageToggle';
+import TargetLanguageToggle from './TargetLanguageToggle';
 import UserMenu from './UserMenu';
 
 interface LayoutProps {
@@ -21,6 +22,7 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </div>
         <div className="flex flex-none items-center gap-2 sm:gap-3.5">
+          <TargetLanguageToggle />
           <LanguageToggle />
           <UserMenu />
         </div>

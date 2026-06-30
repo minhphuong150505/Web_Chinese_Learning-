@@ -1,20 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from '../../components/Icon';
 import Spinner from '../../components/Spinner';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import { useTargetLanguage } from '../../i18n/TargetLanguageProvider';
 import type { Direction } from '../../types/translation';
 
-const DIRECTIONS: Array<{ id: Direction; label: string }> = [
+const ZH_DIRECTIONS: Array<{ id: Direction; label: string }> = [
   { id: 'VI_TO_ZH', label: 'VI → ZH' },
   { id: 'ZH_TO_VI', label: 'ZH → VI' },
+];
+const EN_DIRECTIONS: Array<{ id: Direction; label: string }> = [
+  { id: 'VI_TO_EN', label: 'VI → EN' },
+  { id: 'EN_TO_VI', label: 'EN → VI' },
 ];
 
 export default function TranslationForm() {
   const { text: uiText } = useLanguage();
-  const [direction, setDirection] = useState<Direction>('VI_TO_ZH');
+  const { target } = useTargetLanguage();
+  const isZh = target === 'zh';
+  const directions = isZh ? ZH_DIRECTIONS : EN_DIRECTIONS;
+  const [direction, setDirection] = useState<Direction>(isZh ? 'VI_TO_ZH' : 'VI_TO_EN');
   const [text, setText] = useState('');
   const translate = useTranslation();
+
+  // Switching practice language swaps the available direction pair.
+  useEffect(() => {
+    setDirection(isZh ? 'VI_TO_ZH' : 'VI_TO_EN');
+    setText('');
+    translate.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
 
   function submit() {
     if (!text.trim() || translate.isPending) return;
@@ -22,7 +38,11 @@ export default function TranslationForm() {
   }
 
   function swap() {
-    setDirection((d) => (d === 'VI_TO_ZH' ? 'ZH_TO_VI' : 'VI_TO_ZH'));
+    setDirection((d) =>
+      isZh
+        ? d === 'VI_TO_ZH' ? 'ZH_TO_VI' : 'VI_TO_ZH'
+        : d === 'VI_TO_EN' ? 'EN_TO_VI' : 'VI_TO_EN',
+    );
     setText('');
     translate.reset();
   }
@@ -32,7 +52,7 @@ export default function TranslationForm() {
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex items-center justify-between">
           <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
-            {DIRECTIONS.map((d) => (
+            {directions.map((d) => (
               <button
                 key={d.id}
                 type="button"
@@ -60,9 +80,11 @@ export default function TranslationForm() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={
-            direction === 'VI_TO_ZH'
+            direction === 'VI_TO_ZH' || direction === 'VI_TO_EN'
               ? uiText('Nhập tiếng Việt...', 'Type in Vietnamese...')
-              : uiText('Nhập tiếng Trung...', 'Type in Chinese...')
+              : direction === 'ZH_TO_VI'
+                ? uiText('Nhập tiếng Trung...', 'Type in Chinese...')
+                : uiText('Nhập tiếng Anh...', 'Type in English...')
           }
           rows={8}
           className="scroll min-h-[180px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"

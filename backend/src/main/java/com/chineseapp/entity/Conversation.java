@@ -22,6 +22,11 @@ public class Conversation {
     @Column(name = "title", nullable = false)
     private String title;
 
+    // Practice language of the whole conversation ("zh", "en", …). Drives which
+    // tutor prompts and TTS voice every later turn uses.
+    @Column(name = "lang", nullable = false)
+    private String lang;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -31,10 +36,16 @@ public class Conversation {
     protected Conversation() {
     }
 
+    /** Backward-compatible constructor: defaults the practice language to Mandarin. */
     public Conversation(UUID id, UUID userId, String title, Instant createdAt, Instant updatedAt) {
+        this(id, userId, title, "zh", createdAt, updatedAt);
+    }
+
+    public Conversation(UUID id, UUID userId, String title, String lang, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.userId = userId;
         this.title = title;
+        this.lang = lang;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -53,6 +64,10 @@ public class Conversation {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public String getLang() {
+        return lang;
     }
 
     public Instant getCreatedAt() {

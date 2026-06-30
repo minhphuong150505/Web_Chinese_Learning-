@@ -20,8 +20,12 @@ public class EdgeTtsClient {
     }
 
     public byte[] synthesize(String text) {
+        return synthesize(text, null);
+    }
+
+    public byte[] synthesize(String text, String lang) {
         String encodedText = URLEncoder.encode(text, StandardCharsets.UTF_8);
-        String encodedVoice = URLEncoder.encode(props.getVoice(), StandardCharsets.UTF_8);
+        String encodedVoice = URLEncoder.encode(props.resolveVoice(lang), StandardCharsets.UTF_8);
         return webClient.get()
             .uri(URI.create(props.getBaseUrl() + "/tts?text=" + encodedText + "&voice=" + encodedVoice))
             .retrieve()

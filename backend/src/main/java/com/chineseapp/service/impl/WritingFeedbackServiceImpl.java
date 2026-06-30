@@ -59,6 +59,31 @@ public class WritingFeedbackServiceImpl implements WritingFeedbackService {
         Do not use markdown or add text outside the JSON object.
         """;
 
+    private static final String EN_DEFAULT_TOPIC = "A short workplace email";
+    private static final String EN_DEFAULT_CONTEXT = "Create a short everyday or workplace (TOEIC-style) English writing task.";
+    private static final String EN_SYSTEM_PROMPT = """
+        You are an English writing tutor. Given a learner's English text, return strict JSON:
+        {
+          "correctedText": "<full corrected text>",
+          "comments": [
+            { "issue": "<what is wrong>", "suggestion": "<how to fix>", "severity": "info|warn|error" }
+          ]
+        }
+        Focus on grammar, word choice, naturalness, and clarity for everyday and workplace (TOEIC-style) English.
+        Do not include any text outside the JSON.
+        """;
+    private static final String EN_PROMPT_PLANNER_PROMPT = """
+        You create English WRITING-practice prompts for a learner (everyday + workplace / TOEIC-style writing).
+        Return ONLY one valid JSON object with exactly these fields:
+        {
+          "title": "short English or Vietnamese title, max 8 words",
+          "promptText": "one clear English writing prompt asking for a short piece (e.g. an email, an opinion, or a description of 3-6 sentences)",
+          "level": "a TOEIC-style level label such as \\"TOEIC 600\\" or \\"TOEIC (B1)\\""
+        }
+        The promptText must be practical, concrete, and use everyday or workplace contexts common in TOEIC writing.
+        Do not use markdown or add text outside the JSON object.
+        """;
+
     private final LlmClient llm;
     private final ObjectMapper objectMapper;
 
@@ -69,17 +94,23 @@ public class WritingFeedbackServiceImpl implements WritingFeedbackService {
 
     @Override
     public WritingPromptResponse createPrompt(CreateWritingPromptRequest req) {
+        String lang = normalizeLang(req == null ? null : req.lang());
+        boolean en = "en".equals(lang);
         String topic = clean(req == null ? null : req.topicTitle());
         String context = clean(req == null ? null : req.context());
-        Integer hskLevel = req == null ? null : req.hskLevel();
+        // HSK exam levels only apply to Mandarin; English tasks are always general.
+        Integer hskLevel = en ? null : (req == null ? null : req.hskLevel());
         if (!StringUtils.hasText(topic)) {
-            topic = DEFAULT_TOPIC;
+            topic = en ? EN_DEFAULT_TOPIC : DEFAULT_TOPIC;
         }
         if (!StringUtils.hasText(context)) {
-            context = DEFAULT_CONTEXT;
+            context = en ? EN_DEFAULT_CONTEXT : DEFAULT_CONTEXT;
         }
 
         boolean hsk = hskLevel != null;
+        String plannerPrompt = en
+            ? EN_PROMPT_PLANNER_PROMPT
+            : (hsk ? HSK_PROMPT_PLANNER_PROMPT : PROMPT_PLANNER_PROMPT);
         String userMessage = hsk
             ? """
                 Target exam level: HSK %d
@@ -96,7 +127,7 @@ public class WritingFeedbackServiceImpl implements WritingFeedbackService {
                 """.formatted(topic, context);
 
         String raw = llm.chat(List.of(
-            new LlmClient.LlmMessage("system", hsk ? HSK_PROMPT_PLANNER_PROMPT : PROMPT_PLANNER_PROMPT),
+            new LlmClient.LlmMessage("system", plannerPrompt),
             new LlmClient.LlmMessage("user", userMessage)
         ));
 
@@ -104,7 +135,7 @@ public class WritingFeedbackServiceImpl implements WritingFeedbackService {
             JsonNode root = objectMapper.readTree(stripFences(raw));
             String title = root.path("title").asText("").trim();
             String promptText = root.path("promptText").asText("").trim();
-            String level = root.path("level").asText(hsk ? "HSK " + hskLevel : "HSK 2").trim();
+            String level = root.path("level").asText(en ? "TOEIC" : (hsk ? "HSK " + hskLevel : "HSK 2")).trim();
             if (!StringUtils.hasText(title) || !StringUtils.hasText(promptText)) {
                 throw new IllegalArgumentException("missing writing prompt field");
             }
@@ -121,8 +152,9 @@ public class WritingFeedbackServiceImpl implements WritingFeedbackService {
             ? "Topic: " + req.topic() + "\n\n" + req.text()
             : req.text();
 
+        String systemPrompt = "en".equals(normalizeLang(req.lang())) ? EN_SYSTEM_PROMPT : SYSTEM_PROMPT;
         String raw = llm.chat(List.of(
-            new LlmClient.LlmMessage("system", SYSTEM_PROMPT),
+            new LlmClient.LlmMessage("system", systemPrompt),
             new LlmClient.LlmMessage("user", userMessage)
         ));
 
@@ -149,6 +181,11 @@ public class WritingFeedbackServiceImpl implements WritingFeedbackService {
 
     private String clean(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    /** Normalizes a request's practice language to a supported code, defaulting to Mandarin. */
+    private String normalizeLang(String lang) {
+        return "en".equals(lang) ? "en" : "zh";
     }
 
     private String trim(String value, int maxLength) {

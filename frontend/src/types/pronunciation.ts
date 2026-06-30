@@ -34,6 +34,8 @@ export interface PronunciationResponse {
   prosody: number | null;
   pronScore: number;
   scripted: boolean;
+  /** Target-language code ('zh', 'en', …). Drives pinyin/tone rendering. */
+  lang: string;
   words: WordScore[];
   createdAt: string;
 }

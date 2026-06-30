@@ -10,6 +10,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -23,7 +25,7 @@ class TtsServiceImplTest {
         EdgeTtsClient client = mock(EdgeTtsClient.class);
         TtsService service = new TtsServiceImpl(client, properties(tempDir));
         byte[] bytes = new byte[] { 1, 2, 3, 4 };
-        when(client.synthesize("你好")).thenReturn(bytes);
+        when(client.synthesize(eq("你好"), any())).thenReturn(bytes);
 
         String filename = service.synthesize("你好");
 
@@ -35,7 +37,7 @@ class TtsServiceImplTest {
     void synthesize_givenClientThrows_thenReturnsNullAndCreatesNoFile() throws Exception {
         EdgeTtsClient client = mock(EdgeTtsClient.class);
         TtsService service = new TtsServiceImpl(client, properties(tempDir));
-        when(client.synthesize("你好")).thenThrow(new RuntimeException("tts unavailable"));
+        when(client.synthesize(eq("你好"), any())).thenThrow(new RuntimeException("tts unavailable"));
 
         String filename = service.synthesize("你好");
 

@@ -1,8 +1,10 @@
 import TranslationForm from './TranslationForm';
 import { useLanguage } from '../../i18n/LanguageProvider';
+import { useTargetLanguage } from '../../i18n/TargetLanguageProvider';
 
 export default function TranslationTab() {
   const { text } = useLanguage();
+  const { target } = useTargetLanguage();
 
   return (
     <div className="scroll min-h-0 flex-1 overflow-y-auto">
@@ -13,7 +15,9 @@ export default function TranslationTab() {
           </div>
           <h2 className="mt-1 text-[26px] font-extrabold tracking-tight text-slate-900">
             {text('Dịch thuật', 'Translate')}{' '}
-            <span className="font-zh text-[22px] font-semibold text-slate-400">翻译</span>
+            {target === 'zh' && (
+              <span className="font-zh text-[22px] font-semibold text-slate-400">翻译</span>
+            )}
           </h2>
         </div>
         <TranslationForm />

@@ -16,9 +16,9 @@ export function useWritingPrompt() {
 
 export function useWritingFeedback() {
   return useMutation({
-    mutationFn: ({ text, topic }: { text: string; topic: string | null }) =>
+    mutationFn: ({ text, topic, lang }: { text: string; topic: string | null; lang?: string }) =>
       apiClient
-        .post<WritingFeedbackResponse>('/writing/feedback', { text, topic } satisfies WritingFeedbackRequest)
+        .post<WritingFeedbackResponse>('/writing/feedback', { text, topic, lang } satisfies WritingFeedbackRequest)
         .then((r) => r.data),
   });
 }
