@@ -23,7 +23,7 @@ class CorpusRetentionJobTest {
         return new PronunciationScore(
             UUID.randomUUID(), UUID.randomUUID(), "ref", "rec",
             BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, null, BigDecimal.ONE,
-            "[]", true, true, path, Instant.now().minusSeconds(1), Instant.now()
+            "[]", true, "zh", true, path, Instant.now().minusSeconds(1), Instant.now()
         );
     }
 
