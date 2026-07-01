@@ -13,6 +13,8 @@ export interface MessageDto {
 export interface ConversationDto {
   id: string;
   title: string;
+  /** Practice language ('zh' | 'en'); 'zh' for legacy conversations created before multi-language. */
+  lang: string;
   createdAt: string;
   updatedAt: string;
 }

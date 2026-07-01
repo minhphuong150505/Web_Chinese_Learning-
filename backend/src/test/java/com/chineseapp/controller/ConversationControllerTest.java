@@ -68,7 +68,7 @@ class ConversationControllerTest {
         UUID mockUserId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         Instant now = Instant.parse("2026-01-01T00:00:00Z");
         when(service.createConversation(eq(mockUserId), any()))
-            .thenReturn(new ConversationDto(UUID.randomUUID(), "Hotel check-in", now, now));
+            .thenReturn(new ConversationDto(UUID.randomUUID(), "Hotel check-in", "zh", now, now));
 
         mockMvc.perform(post("/api/conversations")
                 .contentType(MediaType.APPLICATION_JSON)

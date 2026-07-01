@@ -1,10 +1,12 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../lib/apiClient';
+import { useTargetLanguage } from '../i18n/TargetLanguageProvider';
 import type { ConversationDto, CreateConversationRequest, MessageDto } from '../types/chat';
 
 export function useConversation() {
   const queryClient = useQueryClient();
+  const { target } = useTargetLanguage();
   const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
 
   const conversations = useQuery({
@@ -26,7 +28,12 @@ export function useConversation() {
     },
   });
 
-  const list = conversations.data ?? [];
+  // Only show conversations for the language being practised; legacy rows
+  // without a lang predate multi-language support and are Mandarin.
+  const list = useMemo(
+    () => (conversations.data ?? []).filter((conversation) => (conversation.lang ?? 'zh') === target),
+    [conversations.data, target],
+  );
   const selectedExists = selectedConversationId
     ? list.some((conversation) => conversation.id === selectedConversationId)
     : false;

@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 /** The language the learner is practising (NOT the UI language — see LanguageProvider). */
 export type TargetLanguage = 'zh' | 'en';
@@ -23,14 +17,18 @@ function initialTarget(): TargetLanguage {
 }
 
 export function TargetLanguageProvider({ children }: { children: ReactNode }) {
-  const [target, setTargetState] = useState<TargetLanguage>(initialTarget);
+  // The practice language is read once at boot. Switching it persists the choice
+  // and reloads the whole app so every provider, query, and cached list
+  // re-initialises for the new language instead of mixing the two.
+  const target = initialTarget();
 
   const value = useMemo<TargetLanguageContextValue>(
     () => ({
       target,
       setTarget: (next) => {
+        if (next === target) return;
         localStorage.setItem(TARGET_STORAGE_KEY, next);
-        setTargetState(next);
+        window.location.reload();
       },
     }),
     [target],

@@ -2,9 +2,15 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage, type Language } from '../i18n/LanguageProvider';
+import { useTargetLanguage, type TargetLanguage } from '../i18n/TargetLanguageProvider';
 import { apiClient } from '../lib/apiClient';
 import Icon from './Icon';
 import Spinner from './Spinner';
+
+const TARGET_OPTIONS: Array<{ id: TargetLanguage; label: string }> = [
+  { id: 'zh', label: '中文' },
+  { id: 'en', label: 'English' },
+];
 
 type DialogMode = 'password' | 'delete';
 
@@ -295,6 +301,7 @@ function ErrorMessage({ message }: { message: string }) {
 export default function UserMenu() {
   const { user, logout } = useAuth();
   const { text } = useLanguage();
+  const { target, setTarget } = useTargetLanguage();
   const [open, setOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogMode | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -358,6 +365,34 @@ export default function UserMenu() {
               <div className="truncate text-sm font-extrabold text-slate-900">{user.displayName}</div>
               <div className="mt-0.5 truncate text-xs text-slate-400">{user.email}</div>
             </div>
+            <div className="px-3 pb-2 pt-2">
+              <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                {text('Ngôn ngữ luyện tập', 'Practice language')}
+              </div>
+              <div
+                className="inline-flex w-full items-center rounded-xl border border-violet-200 bg-violet-50 p-1"
+                role="group"
+                aria-label={text('Ngôn ngữ luyện tập', 'Practice language')}
+              >
+                {TARGET_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setTarget(option.id)}
+                    aria-pressed={target === option.id}
+                    className={
+                      'h-8 flex-1 rounded-lg text-[12.5px] font-extrabold transition ' +
+                      (target === option.id
+                        ? 'bg-white text-violet-700 shadow-sm'
+                        : 'text-violet-400 hover:text-violet-700')
+                    }
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="my-1 h-px bg-slate-100" />
             <MenuButton
               icon="key"
               label={
